@@ -21,10 +21,23 @@ export const Tasks: React.FC = () => {
         { id: 'user_3', fullName: 'Ilgar Kerimov', email: 'ilgar@example.com', role: UserRole.USER, createdAt: '' },
     ];
 
-    useEffect(() => {
-        if (!user) return;
+    console.log('[Tasks] Rendering. User:', user?.email, 'isAdmin:', isAdmin);
 
-        // Mock Initial Tasks - Dynamic setup to ensure current user sees data
+    if (!user) {
+        return (
+            <div className="h-64 flex flex-col items-center justify-center gap-4 text-zinc-400 font-mono text-[10px] uppercase tracking-widest">
+                <div className="animate-pulse">Retrieving Registry...</div>
+            </div>
+        );
+    }
+
+    useEffect(() => {
+        if (!user) {
+            console.log('[Tasks] User not available yet, skipping initialization.');
+            return;
+        }
+
+        console.log('[Tasks] Initializing tasks for user:', user.email);
         const initialTasks: Task[] = [
             {
                 id: '1',
@@ -86,10 +99,10 @@ export const Tasks: React.FC = () => {
     // Filter Logic: Admin sees all, User sees tasks assigned to them OR created by them
     const filteredTasks = tasks.filter(t => {
         const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                             t.assignee.fullName.toLowerCase().includes(searchQuery.toLowerCase());
+                             t.assignee?.fullName?.toLowerCase().includes(searchQuery.toLowerCase());
         
         if (isAdmin) return matchesSearch;
-        return matchesSearch && (t.assignee.id === user?.id || t.creator.id === user?.id);
+        return matchesSearch && (t.assignee?.id === user?.id || t.creator?.id === user?.id);
     });
 
     return (
@@ -149,9 +162,9 @@ export const Tasks: React.FC = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-lg bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                                                        {task.assignee.fullName.charAt(0)}
+                                                        {task.assignee?.fullName?.charAt(0) || '?'}
                                                     </div>
-                                                    <span className="text-zinc-600 font-medium">{task.assignee.fullName}</span>
+                                                    <span className="text-zinc-600 font-medium">{task.assignee?.fullName || 'Unassigned'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-center">

@@ -19,20 +19,28 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: UserR
     const { user, loading } = useAuth();
     const location = useLocation();
 
-    if (loading) return (
-        <div className="h-screen w-full flex items-center justify-center bg-zinc-50">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900"></div>
-        </div>
-    );
+    console.log('[ProtectedRoute] Check:', { path: location.pathname, hasUser: !!user, loading });
+
+    if (loading) {
+        console.log('[ProtectedRoute] Rendering Loader');
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-zinc-50">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900"></div>
+            </div>
+        );
+    }
 
     if (!user) {
+        console.log('[ProtectedRoute] No user, redirecting to login from', location.pathname);
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
+        console.warn('[ProtectedRoute] Access denied for role:', user.role, 'on path:', location.pathname);
         return <Navigate to="/" replace />;
     }
 
+    console.log('[ProtectedRoute] Rendering children for', location.pathname);
     return <>{children}</>;
 };
 

@@ -9,16 +9,32 @@ export const AdminLogin: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [credentials, setCredentials] = useState({ email: 'admin@taskflow.pro', password: '' });
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('[AdminLogin] Form submitted');
         setLoading(true);
-        // Simulate API delay
-        setTimeout(async () => {
-            await login(UserRole.SUPER_ADMIN);
-            navigate('/');
-        }, 800);
+        setError(null);
+        try {
+            console.log('[AdminLogin] Invoking login context...');
+            const userData = await login(credentials);
+            console.log('[AdminLogin] Login successful for:', userData?.email);
+            
+            // Allow a tiny frame for React to flush state before navigating
+            setTimeout(() => {
+                const from = (location.state as any)?.from?.pathname || '/';
+                console.log('[AdminLogin] Navigating to:', from);
+                navigate(from, { replace: true });
+            }, 50);
+        } catch (err: any) {
+            console.error('[AdminLogin] Login error:', err);
+            setError(err.message || 'Access Denied: Invalid credentials or server error.');
+        } finally {
+            setLoading(false);
+            console.log('[AdminLogin] Login flow concluded');
+        }
     };
 
     return (
@@ -50,6 +66,15 @@ export const AdminLogin: React.FC = () => {
                         </header>
 
                         <form onSubmit={handleLogin} className="space-y-5">
+                            {error && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold"
+                                >
+                                    {error}
+                                </motion.div>
+                            )}
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin Identifier</label>
                                 <div className="relative">

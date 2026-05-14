@@ -9,15 +9,32 @@ export const UserLogin: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [credentials, setCredentials] = useState({ email: 'staff@example.com', password: '' });
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('[UserLogin] Form submitted');
         setLoading(true);
-        setTimeout(async () => {
-            await login(UserRole.USER);
-            navigate('/');
-        }, 800);
+        setError(null);
+        try {
+            console.log('[UserLogin] Invoking login context...');
+            const userData = await login(credentials);
+            console.log('[UserLogin] Login successful for:', userData?.email);
+            
+            // Allow a tiny frame for React to flush state before navigating
+            setTimeout(() => {
+                const from = (location.state as any)?.from?.pathname || '/';
+                console.log('[UserLogin] Navigating to:', from);
+                navigate(from, { replace: true });
+            }, 50);
+        } catch (err: any) {
+            console.error('[UserLogin] Login error:', err);
+            setError(err.message || 'Login Failed: Please check your email and password.');
+        } finally {
+            setLoading(false);
+            console.log('[UserLogin] Login flow concluded');
+        }
     };
 
     return (
@@ -49,6 +66,15 @@ export const UserLogin: React.FC = () => {
                         </header>
 
                         <form onSubmit={handleLogin} className="space-y-5">
+                            {error && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold"
+                                >
+                                    {error}
+                                </motion.div>
+                            )}
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Work Email</label>
                                 <div className="relative">

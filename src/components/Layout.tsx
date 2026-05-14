@@ -22,28 +22,47 @@ function cn(...inputs: ClassValue[]) {
 }
 
 export const Layout: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, loading, logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-    const navigation = [
-        { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-        { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-        { name: 'Penalties', href: '/penalties', icon: AlertCircle },
-    ];
+    console.log('[Layout] Rendering for user:', user?.email, 'at', location.pathname, 'loading:', loading);
 
-    if (user?.role === UserRole.SUPER_ADMIN) {
-        navigation.push(
-            { name: 'Users', href: '/users', icon: UsersIcon },
-            { name: 'Settings', href: '/settings', icon: SettingsIcon }
-        );
-    }
+    const userRole = user?.role;
+    const userEmail = user?.email;
+
+    const navigation = React.useMemo(() => {
+        console.log('[Layout] Recalculating navigation for email:', userEmail, 'role:', userRole);
+        const base = [
+            { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+            { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+            { name: 'Penalties', href: '/penalties', icon: AlertCircle },
+        ];
+
+        if (userRole === UserRole.SUPER_ADMIN) {
+            base.push(
+                { name: 'Users', href: '/users', icon: UsersIcon },
+                { name: 'Settings', href: '/settings', icon: SettingsIcon }
+            );
+        }
+        return base;
+    }, [userRole, userEmail]);
 
     const handleLogout = async () => {
+        console.log('[Layout] Logout clicked');
         await logout();
         navigate('/login');
     };
+
+    if (loading || !user) {
+        return (
+            <div className="h-screen w-full flex items-center justify-center bg-zinc-50 flex-col gap-4 font-mono">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900"></div>
+                <div className="text-[10px] uppercase tracking-widest text-zinc-400">Synchronizing Session...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-zinc-50 flex">
@@ -80,8 +99,8 @@ export const Layout: React.FC = () => {
                 <div className="p-4 border-t border-zinc-200 bg-white">
                     <div className="px-3 py-3 rounded-xl bg-zinc-50 border border-zinc-100 mb-4">
                         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signed in as</p>
-                        <p className="text-sm font-medium text-zinc-900 truncate">{user?.fullName}</p>
-                        <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
+                        <p className="text-sm font-medium text-zinc-900 truncate">{user?.fullName || 'N/A'}</p>
+                        <p className="text-[10px] text-zinc-500 truncate">{user?.email || 'N/A'}</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -114,7 +133,7 @@ export const Layout: React.FC = () => {
                             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                         </button>
                         <div className="w-8 h-8 rounded-full bg-zinc-200 border border-zinc-300 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden">
-                            {user?.fullName.charAt(0)}
+                            {user?.fullName?.charAt(0) || '?'}
                         </div>
                     </div>
                 </header>
@@ -189,8 +208,8 @@ export const Layout: React.FC = () => {
                             <div className="p-4 border-t border-zinc-200">
                                 <div className="px-3 py-3 rounded-xl bg-zinc-50 border border-zinc-100 mb-4">
                                     <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signed in as</p>
-                                    <p className="text-sm font-medium text-zinc-900 truncate">{user?.fullName}</p>
-                                    <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
+                                    <p className="text-sm font-medium text-zinc-900 truncate">{user?.fullName || 'N/A'}</p>
+                                    <p className="text-[10px] text-zinc-500 truncate">{user?.email || 'N/A'}</p>
                                 </div>
                                 <button
                                     onClick={handleLogout}

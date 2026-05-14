@@ -20,6 +20,16 @@ export const Penalties: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const isAdmin = user?.role === UserRole.SUPER_ADMIN;
 
+    console.log('[Penalties] Rendering. User:', user?.email, 'isAdmin:', isAdmin);
+
+    if (!user) {
+        return (
+            <div className="h-64 flex flex-col items-center justify-center gap-4 text-zinc-400 font-mono text-[10px] uppercase tracking-widest">
+                <div className="animate-pulse">Retrieving Penalties...</div>
+            </div>
+        );
+    }
+
     // Mock Penalties
     const mockPenalties: Penalty[] = [
         {
@@ -69,16 +79,18 @@ export const Penalties: React.FC = () => {
     // Filter Logic: User sees only their own, Admin sees everything
     const filteredPenalties = isAdmin 
         ? mockPenalties.filter(p => 
-            p.user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.task.title.toLowerCase().includes(searchQuery.toLowerCase())
+            p.user?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.task?.title?.toLowerCase().includes(searchQuery.toLowerCase())
           )
-        : mockPenalties.filter(p => p.user.id === user?.id);
+        : mockPenalties.filter(p => p.user?.id === user?.id);
 
-    const stats = [
-        { label: 'Total Unpaid', value: `${filteredPenalties.filter(p => p.status === PenaltyStatus.PENDING).reduce((acc, p) => acc + p.amount, 0).toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
-        { label: 'Active Disputes', value: filteredPenalties.filter(p => p.evidenceRequired && !p.evidenceProvided).length.toString(), icon: AlertCircle, color: 'text-amber-600' },
-        { label: 'Settled', value: filteredPenalties.filter(p => p.status === PenaltyStatus.PAID).length.toString(), icon: CheckCircle2, color: 'text-green-600' }
-    ];
+    const stats = React.useMemo(() => {
+        return [
+            { label: 'Total Unpaid', value: `${filteredPenalties.filter(p => p.status === PenaltyStatus.PENDING).reduce((acc, p) => acc + p.amount, 0).toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
+            { label: 'Active Disputes', value: filteredPenalties.filter(p => p.evidenceRequired && !p.evidenceProvided).length.toString(), icon: AlertCircle, color: 'text-amber-600' },
+            { label: 'Settled', value: filteredPenalties.filter(p => p.status === PenaltyStatus.PAID).length.toString(), icon: CheckCircle2, color: 'text-green-600' }
+        ];
+    }, [filteredPenalties]);
 
     return (
         <div className="space-y-6">
