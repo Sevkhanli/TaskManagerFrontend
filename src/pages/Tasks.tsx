@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, History, RefreshCcw } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, History, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Task, TaskStatus, User, UserRole } from '../types';
 import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
-import { format } from 'date-fns';
-import { tasksApi, TaskResponse, authApi } from '../api';
+import { format, parseISO, isPast } from 'date-fns';
+import { tasksApi, TaskResponse, authApi, GroupedTaskResponse } from '../api';
+
+interface GroupedTask {
+    date: string;
+    tasks: Task[];
+}
 
 export const Tasks: React.FC = () => {
     const { user } = useAuth();
@@ -17,6 +22,9 @@ export const Tasks: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [viewMode, setViewMode] = useState<'list' | 'folder'>('list');
+    const [groupedTasks, setGroupedTasks] = useState<GroupedTask[]>([]);
+    const [openFolders, setOpenFolders] = useState<string[]>([]);
 
     // Use fetched users for Admin, or just current user for regular staff
     const usersForModal = isAdmin ? allUsers : [
@@ -79,19 +87,35 @@ export const Tasks: React.FC = () => {
 
     const fetchTasks = async (usersList: User[] = allUsers) => {
         setLoading(true);
-        console.log('[Tasks] Fetching registry with users list size:', usersList.length);
         try {
-            const data = await tasksApi.getTasks();
-            setTasks(data.map(res => mapResponseToTask(res, usersList)));
+            if (viewMode === 'list') {
+                const data = await tasksApi.getTasks();
+                setTasks(data.map(res => mapResponseToTask(res, usersList)));
+            } else {
+                const groupedData = await tasksApi.getGroupedTasks();
+                const mappedGrouped = groupedData.map(group => ({
+                    date: group.date,
+                    tasks: group.tasks.map(res => mapResponseToTask(res, usersList))
+                }));
+                setGroupedTasks(mappedGrouped);
+                // Auto-open today's folder or first folder if none open
+                if (openFolders.length === 0 && mappedGrouped.length > 0) {
+                    setOpenFolders([mappedGrouped[0].date]);
+                }
+            }
             setError(null);
         } catch (err: any) {
             console.error('[Tasks] Fetch error:', err);
-            if (tasks.length === 0) {
-                setError('Failed to retrieve task registry.');
-            }
+            setError('Failed to retrieve task registry.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const toggleFolder = (date: string) => {
+        setOpenFolders(prev => 
+            prev.includes(date) ? prev.filter(d => d !== date) : [...prev, date]
+        );
     };
 
     const fetchUsersAndTasks = async () => {
@@ -126,12 +150,12 @@ export const Tasks: React.FC = () => {
     };
 
     useEffect(() => {
-        console.log('[Tasks] Effect triggered. User Context Ready:', !!user, 'Name:', user?.fullName);
+        console.log('[Tasks] Effect triggered. User Context Ready:', !!user, 'Name:', user?.fullName, 'View:', viewMode);
         const token = localStorage.getItem('tf_access_token');
         if (token || user) {
             fetchUsersAndTasks();
         }
-    }, [user?.id, user?.fullName, isAdmin]);
+    }, [user?.id, user?.fullName, isAdmin, viewMode]);
 
     if (!user) {
         return (
@@ -336,6 +360,28 @@ export const Tasks: React.FC = () => {
         return matchesSearch && (isAssignedToMe || isCreatedByMe);
     });
 
+    const filteredGroupedTasks = groupedTasks.map(group => ({
+        ...group,
+        tasks: group.tasks.filter(t => {
+            const query = searchQuery.toLowerCase().trim();
+            const titleMatch = (t.title || '').toLowerCase().includes(query);
+            const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
+            const matchesSearch = titleMatch || assigneeMatch;
+            
+            if (isAdmin) return matchesSearch;
+            
+            const myNameRaw = (user.fullName || '').toLowerCase().trim();
+            const myEmailRaw = (user.email || '').toLowerCase().trim();
+            const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
+            const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
+            
+            const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
+            const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
+            
+            return matchesSearch && (isAssignedToMe || isCreatedByMe);
+        })
+    })).filter(group => group.tasks.length > 0);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -344,6 +390,22 @@ export const Tasks: React.FC = () => {
                     <p className="text-zinc-500">Operational tasks and strategic objectives.</p>
                 </header>
                 <div className="flex items-center gap-3">
+                    <div className="flex bg-zinc-100 p-1 rounded-xl mr-2">
+                        <button 
+                            onClick={() => setViewMode('list')}
+                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            title="List View"
+                        >
+                            <LayoutList className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('folder')}
+                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'folder' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            title="Folder View"
+                        >
+                            <Folder className="w-4 h-4" />
+                        </button>
+                    </div>
                     <button 
                         onClick={fetchUsersAndTasks}
                         disabled={loading}
@@ -374,110 +436,210 @@ export const Tasks: React.FC = () => {
                 </div>
             </div>
 
-            <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left border-collapse">
-                        <thead>
-                            <tr className="bg-zinc-50 border-b border-zinc-200">
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">UID</th>
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Task Information</th>
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Assignee</th>
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-center">Status</th>
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Deadline</th>
-                                <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <RefreshCcw className="w-5 h-5 animate-spin text-zinc-400" />
-                                            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Synchronizing registry...</span>
-                                        </div>
-                                    </td>
+            {viewMode === 'list' ? (
+                <div className="card overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left border-collapse">
+                            <thead>
+                                <tr className="bg-zinc-50 border-b border-zinc-200">
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">UID</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Task Information</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Assignee</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-center">Status</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Deadline</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Actions</th>
                                 </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <span className="text-red-500 font-mono text-[10px] uppercase tracking-widest">{error}</span>
-                                            <button onClick={fetchTasks} className="text-[10px] underline uppercase tracking-widest text-zinc-400 hover:text-zinc-900">Force Retry</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : filteredTasks.length > 0 ? (
-                                filteredTasks.map((task) => {
-                                    const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
-                                    return (
-                                        <tr key={task.id} className="hover:bg-zinc-50/50 transition-colors group">
-                                            <td className="px-6 py-4 font-mono text-[10px] text-zinc-400">#{task.id.length > 4 ? task.id.slice(-4) : task.id}</td>
-                                            <td className="px-6 py-4">
-                                                <p className="font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{task.title}</p>
-                                                <p className="text-xs text-zinc-400 truncate max-w-[240px] mt-0.5">{task.description}</p>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-lg bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                                                        {task.assignee?.fullName?.charAt(0) || (String(task.assignee?.id) === String(user?.id) ? user?.fullName?.charAt(0) : '?')}
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <RefreshCcw className="w-5 h-5 animate-spin text-zinc-400" />
+                                                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Synchronizing registry...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : error ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <span className="text-red-500 font-mono text-[10px] uppercase tracking-widest">{error}</span>
+                                                <button onClick={fetchTasks} className="text-[10px] underline uppercase tracking-widest text-zinc-400 hover:text-zinc-900">Force Retry</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : filteredTasks.length > 0 ? (
+                                    filteredTasks.map((task) => {
+                                        const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
+                                        return (
+                                            <tr key={task.id} className="hover:bg-zinc-50/50 transition-colors group">
+                                                <td className="px-6 py-4 font-mono text-[10px] text-zinc-400">#{task.id.length > 4 ? task.id.slice(-4) : task.id}</td>
+                                                <td className="px-6 py-4">
+                                                    <p className="font-bold text-zinc-900 group-hover:text-zinc-600 transition-colors">{task.title}</p>
+                                                    <p className="text-xs text-zinc-400 truncate max-w-[240px] mt-0.5">{task.description}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-lg bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                                                            {task.assignee?.fullName?.charAt(0) || (String(task.assignee?.id) === String(user?.id) ? user?.fullName?.charAt(0) : '?')}
+                                                        </div>
+                                                        <span className="text-zinc-600 font-medium">{task.assignee?.fullName || (String(task.assignee?.id) === String(user?.id) ? user?.fullName : 'Unassigned')}</span>
                                                     </div>
-                                                    <span className="text-zinc-600 font-medium">{task.assignee?.fullName || (String(task.assignee?.id) === String(user?.id) ? user?.fullName : 'Unassigned')}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className={`inline-flex items-center justify-center min-w-[90px] px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
-                                                    task.status === TaskStatus.COMPLETED ? 'bg-zinc-900 text-white border-zinc-900' :
-                                                    isOverdue ? 'bg-red-50 text-red-700 border-red-200' :
-                                                    task.status === TaskStatus.IN_PROGRESS ? 'bg-zinc-50 text-zinc-900 border-zinc-200 shadow-sm' :
-                                                    task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                    'bg-white text-zinc-400 border-zinc-100'
-                                                }`}>
-                                                    {isOverdue ? 'CRITICAL / OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                    <span className={`text-xs font-bold ${isOverdue ? 'text-red-600' : 'text-zinc-600'}`}>
-                                                        {format(new Date(task.deadline), 'MMM dd, yyyy')}
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`inline-flex items-center justify-center min-w-[90px] px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                                        task.status === TaskStatus.COMPLETED ? 'bg-zinc-900 text-white border-zinc-900' :
+                                                        isOverdue ? 'bg-red-50 text-red-700 border-red-200' :
+                                                        task.status === TaskStatus.IN_PROGRESS ? 'bg-zinc-50 text-zinc-900 border-zinc-200 shadow-sm' :
+                                                        task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                        'bg-white text-zinc-400 border-zinc-100'
+                                                    }`}>
+                                                        {isOverdue ? 'CRITICAL / OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
                                                     </span>
-                                                    <span className="text-[10px] text-zinc-400 uppercase tracking-tighter">
-                                                        {format(new Date(task.deadline), 'HH:mm')} Zulu
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <button 
-                                                        className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                                                        title="Status History"
-                                                    >
-                                                        <History className="w-4 h-4" />
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setSelectedTask(task);
-                                                            setIsModalOpen(true);
-                                                        }}
-                                                        className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                                                    >
-                                                        <MoreHorizontal className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-400 italic">
-                                        {tasks.length === 0 ? 'No tasks registered in the system.' : 'No tasks match your current search parameters.'}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-xs font-bold ${isOverdue ? 'text-red-600' : 'text-zinc-600'}`}>
+                                                            {format(new Date(task.deadline), 'MMM dd, yyyy')}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-400 uppercase tracking-tighter">
+                                                            {format(new Date(task.deadline), 'HH:mm')} Zulu
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button 
+                                                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                                                            title="Status History"
+                                                        >
+                                                            <History className="w-4 h-4" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => {
+                                                                setSelectedTask(task);
+                                                                setIsModalOpen(true);
+                                                            }}
+                                                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                                                        >
+                                                            <MoreHorizontal className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-12 text-center text-zinc-400 italic">
+                                            {tasks.length === 0 ? 'No tasks registered in the system.' : 'No tasks match your current search parameters.'}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="space-y-4">
+                    {loading ? (
+                        <div className="px-6 py-12 text-center bg-white border border-dashed border-zinc-200 rounded-3xl">
+                            <RefreshCcw className="w-6 h-6 animate-spin mx-auto text-zinc-400 mb-4" />
+                            <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">Compiling folder structure...</p>
+                        </div>
+                    ) : filteredGroupedTasks.length > 0 ? (
+                        filteredGroupedTasks.map((group) => (
+                            <div key={group.date} className="bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                <button 
+                                    onClick={() => toggleFolder(group.date)}
+                                    className="w-full flex items-center justify-between p-5 hover:bg-zinc-50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center text-white shadow-lg">
+                                            <Folder className="w-6 h-6 fill-current" />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="text-lg font-bold text-zinc-900">
+                                                {format(parseISO(group.date), 'EEEE, MMMM dd')}
+                                            </h3>
+                                            <p className="text-xs text-zinc-400 flex items-center gap-2">
+                                                <Clock className="w-3 h-3" />
+                                                {group.tasks.length} {group.tasks.length === 1 ? 'Operation' : 'Operations'} Registered
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={`transition-transform duration-300 ${openFolders.includes(group.date) ? 'rotate-180' : ''}`}>
+                                        <ChevronDown className="w-5 h-5 text-zinc-400" />
+                                    </div>
+                                </button>
+                                
+                                {openFolders.includes(group.date) && (
+                                    <div className="p-4 bg-zinc-50/50 border-t border-zinc-50 space-y-3">
+                                        {group.tasks.map(task => {
+                                            const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
+                                            return (
+                                                <div 
+                                                    key={task.id}
+                                                    onClick={() => {
+                                                        setSelectedTask(task);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                    className="bg-white p-4 rounded-xl border border-zinc-100 shadow-xs hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`mt-1 p-2 rounded-lg ${
+                                                                task.status === TaskStatus.COMPLETED ? 'bg-zinc-100 text-zinc-900' :
+                                                                isOverdue ? 'bg-red-50 text-red-600' :
+                                                                'bg-amber-50 text-amber-600'
+                                                            }`}>
+                                                                <CalendarIcon className="w-4 h-4" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="font-bold text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight">{task.title}</h4>
+                                                                <p className="text-sm text-zinc-500 line-clamp-1">{task.description}</p>
+                                                                <div className="flex items-center gap-3 mt-2">
+                                                                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase font-mono">
+                                                                        <div className="w-4 h-4 rounded bg-zinc-100 flex items-center justify-center text-[8px] font-bold">
+                                                                            {task.assignee?.fullName?.charAt(0)}
+                                                                        </div>
+                                                                        {task.assignee?.fullName}
+                                                                    </div>
+                                                                    <div className="w-1 h-1 rounded-full bg-zinc-200" />
+                                                                    <span className="text-[10px] text-zinc-400 uppercase font-mono">#{task.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
+                                                                task.status === TaskStatus.COMPLETED ? 'bg-zinc-900 text-white border-zinc-900' :
+                                                                isOverdue ? 'bg-red-50 text-red-700 border-red-200' :
+                                                                task.status === TaskStatus.IN_PROGRESS ? 'bg-zinc-50 text-zinc-900 border-zinc-200 shadow-sm' :
+                                                                task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                                'bg-white text-zinc-400 border-zinc-100'
+                                                            }`}>
+                                                                {isOverdue ? 'OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
+                                                            </span>
+                                                            <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-900 transition-colors" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-6 py-24 text-center bg-white border border-dashed border-zinc-200 rounded-3xl">
+                            <Folder className="w-12 h-12 mx-auto text-zinc-200 mb-4" />
+                            <h3 className="text-lg font-bold text-zinc-900 mb-2 uppercase tracking-tight">Empty Archives</h3>
+                            <p className="text-zinc-500 max-w-xs mx-auto">No operational tasks match your current filters within the date registry.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <TaskModal 
                 isOpen={isModalOpen}

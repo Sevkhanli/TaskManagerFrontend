@@ -3,7 +3,8 @@ export enum TaskStatus {
     IN_PROGRESS = 'IN_PROGRESS',
     COMPLETED = 'COMPLETED',
     OVERDUE = 'OVERDUE',
-    PENDING = 'PENDING'
+    PENDING = 'PENDING',
+    CANCELLED = 'CANCELLED'
 }
 
 export enum PenaltyStatus {

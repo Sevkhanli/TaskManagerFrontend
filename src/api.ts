@@ -132,6 +132,11 @@ export interface TaskResponse {
     assigneeName: string;
 }
 
+export interface GroupedTaskResponse {
+    date: string;
+    tasks: TaskResponse[];
+}
+
 export const tasksApi = {
     createPersonalTask: async (taskData: { title: string, description: string, deadline: string }): Promise<TaskResponse> => {
         const response = await api.post<TaskResponse>('/api/tasks', taskData);
@@ -157,6 +162,10 @@ export const tasksApi = {
         const response = await api.patch<TaskResponse>(`/api/tasks/${id}/status`, null, {
             params: { newStatus: status, reason }
         });
+        return response.data;
+    },
+    getGroupedTasks: async (): Promise<GroupedTaskResponse[]> => {
+        const response = await api.get<GroupedTaskResponse[]>('/api/tasks/grouped');
         return response.data;
     }
 };
