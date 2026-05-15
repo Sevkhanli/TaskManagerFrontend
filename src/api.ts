@@ -202,6 +202,14 @@ export const penaltyApi = {
     getUserSummary: async (userId: string | number): Promise<UserPenaltyStats> => {
         const response = await api.get<UserPenaltyStats>(`/api/penalties/user/${userId}/summary`);
         return response.data;
+    },
+    markAsPaid: async (penaltyId: number): Promise<any> => {
+        const response = await api.post(`/api/penalties/${penaltyId}/mark-paid`);
+        return response.data;
+    },
+    waive: async (penaltyId: number, waiveReason: string): Promise<any> => {
+        const response = await api.post('/api/penalties/waive', { penaltyId, waiveReason });
+        return response.data;
     }
 };
 

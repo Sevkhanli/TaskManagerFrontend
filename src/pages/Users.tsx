@@ -34,8 +34,8 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
             >
                 <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                     <div>
-                        <h3 className="text-xl font-bold text-zinc-900">User Performance Summary</h3>
-                        <p className="text-sm text-zinc-500 font-mono tracking-tighter">SEC_ID: {userId}</p>
+                        <h3 className="text-xl font-bold text-zinc-900">İstifadəçi Performans Xülasəsi</h3>
+                        <p className="text-sm text-zinc-500 font-mono tracking-tighter">SİST_ID: {userId}</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-900">
                         <X className="w-5 h-5" />
@@ -46,12 +46,12 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
                     {loading ? (
                         <div className="flex flex-col items-center gap-4 py-12">
                             <RefreshCcw className="w-8 h-8 animate-spin text-zinc-300" />
-                            <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Analyzing Performance Data...</p>
+                            <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Göstəricilər Təhlil Edilir...</p>
                         </div>
                     ) : error ? (
                         <div className="p-8 text-center bg-red-50 rounded-xl border border-red-100">
                             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                            <p className="text-red-600 font-bold mb-1">DATA_FET_ERR</p>
+                            <p className="text-red-600 font-bold mb-1">XƏTA_DATA</p>
                             <p className="text-red-400 text-sm">{error}</p>
                         </div>
                     ) : summary && (
@@ -61,45 +61,45 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
                                     <UserIcon className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest leading-none mb-1">Operative Identity</p>
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest leading-none mb-1">İstifadəçi Kimliyi</p>
                                     <p className="text-lg font-bold">{summary.userName}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Total Liability</p>
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Ümumi Öhdəlik</p>
                                     <p className="text-2xl font-black tracking-tighter text-zinc-900">
                                         {(summary.totalPenaltyAmount ?? summary.totalPendingAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-zinc-400">{summary.currency}</span>
                                     </p>
                                 </div>
                                 <div className="p-4 bg-red-50 rounded-xl border border-red-100">
-                                    <p className="text-[10px] font-mono text-red-400 uppercase tracking-widest mb-2">Pending Balance</p>
+                                    <p className="text-[10px] font-mono text-red-400 uppercase tracking-widest mb-2">Borc Balansı</p>
                                     <p className="text-2xl font-black tracking-tighter text-red-600">
                                         {(summary.pendingAmount ?? summary.totalPendingAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-red-400">{summary.currency}</span>
                                     </p>
                                 </div>
                                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Settled Amount</p>
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Ödənilmiş Məbləğ</p>
                                     <p className="text-2xl font-black tracking-tighter text-zinc-900">
                                         {(summary.paidAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-zinc-400">{summary.currency}</span>
                                     </p>
                                 </div>
                                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Waived Credits</p>
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Bağışlananlar</p>
                                     <p className="text-2xl font-black tracking-tighter text-emerald-600">
-                                        {summary.waivedPenalties ?? 0} <span className="text-xs font-bold text-zinc-400">CASES</span>
+                                        {summary.waivedPenalties ?? 0} <span className="text-xs font-bold text-zinc-400">HAL</span>
                                     </p>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-zinc-400" /> Total Penalties Issued</span>
+                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-zinc-400" /> Cəmi Cərimə Sayı</span>
                                     <span className="font-bold text-zinc-900">{summary.totalPenaltyCount ?? summary.totalPenalties ?? 0}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Active Violations</span>
+                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Aktiv Pozuntular</span>
                                     <span className="font-bold text-red-600">{summary.activePenalties ?? summary.pendingPenalties ?? 0}</span>
                                 </div>
                             </div>
@@ -108,7 +108,7 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
                 </div>
 
                 <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex justify-end">
-                    <button onClick={onClose} className="btn-secondary px-8 font-bold text-[11px] tracking-widest">CLOSE FILE</button>
+                    <button onClick={onClose} className="btn-secondary px-8 font-bold text-[11px] tracking-widest">BAĞLA</button>
                 </div>
             </motion.div>
         </div>
