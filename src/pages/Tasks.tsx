@@ -95,22 +95,37 @@ export const Tasks: React.FC = () => {
 
     const fetchUsersAndTasks = async () => {
         let currentUsers: User[] = [];
+        console.log('[Tasks] fetchUsersAndTasks starting. isAdmin:', isAdmin);
+        
         if (isAdmin) {
             try {
+                console.log('[Tasks] Calling authApi.getUsers()...');
                 const users = await authApi.getUsers();
-                currentUsers = users.map((u: any) => ({
-                    id: String(u.id),
-                    fullName: u.fullName || u.name || 'User',
-                    email: u.email || '',
-                    role: u.role === 'admin' || (u.email === 'admin@itbrains.edu.az') ? UserRole.SUPER_ADMIN : UserRole.USER,
-                    createdAt: ''
-                }));
-                setAllUsers(currentUsers);
-                console.log('[Tasks] Users synchronized:', currentUsers.length);
+                console.log('[Tasks] authApi.getUsers() response:', users);
+                
+                if (Array.isArray(users)) {
+                    currentUsers = users.map((u: any) => ({
+                        id: String(u.id),
+                        fullName: u.fullName || u.name || 'User',
+                        email: u.email || '', 
+                        role: (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin')) 
+                            ? UserRole.SUPER_ADMIN : UserRole.USER,
+                        createdAt: ''
+                    }));
+                    setAllUsers(currentUsers);
+                    console.log('[Tasks] Users synchronized successfully:', currentUsers.length);
+                } else {
+                    console.warn('[Tasks] getUsers returned non-array:', users);
+                }
             } catch (err) {
-                console.warn('[Tasks] Failed to fetch users (backend endpoint missing?). Fallback to manual ID entry or empty list.');
+                console.error('[Tasks] Error fetching users from admin endpoint:', err);
+                console.warn('[Tasks] Fallback to empty user list.');
             }
+        } else {
+            console.log('[Tasks] User is not admin, skipping global user fetch.');
         }
+
+        // Always fetch tasks, using whatever users we managed to get
         fetchTasks(currentUsers.length > 0 ? currentUsers : allUsers);
     };
 

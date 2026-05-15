@@ -108,12 +108,16 @@ export const authApi = {
         return response.data;
     },
     getUsers: async (): Promise<any[]> => {
-        // Fetch real users from backend for assignment
-        const response = await api.get<any[]>('/api/users');
+        // Correct endpoint for fetching all users for admin
+        const response = await api.get<any[]>('/api/auth/admin/users');
         return response.data;
     },
     refreshToken: async (): Promise<AuthResponse> => {
         const response = await api.post<AuthResponse>('/api/auth/refresh-token');
+        return response.data;
+    },
+    adminCreateUser: async (userData: any): Promise<{ success: boolean, message: string }> => {
+        const response = await api.post<{ success: boolean, message: string }>('/api/auth/admin/create-user', userData);
         return response.data;
     }
 };
