@@ -13,6 +13,7 @@ export const Tasks: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [saveLoading, setSaveLoading] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -95,13 +96,14 @@ export const Tasks: React.FC = () => {
 
     const fetchUsersAndTasks = async () => {
         let currentUsers: User[] = [];
-        console.log('[Tasks] fetchUsersAndTasks starting. isAdmin:', isAdmin);
+        const activeIsAdmin = isAdmin || user?.role === UserRole.SUPER_ADMIN;
         
-        if (isAdmin) {
+        console.log('[Tasks] fetchUsersAndTasks starting. isAdmin:', activeIsAdmin);
+        
+        if (activeIsAdmin) {
             try {
                 console.log('[Tasks] Calling authApi.getUsers()...');
                 const users = await authApi.getUsers();
-                console.log('[Tasks] authApi.getUsers() response:', users);
                 
                 if (Array.isArray(users)) {
                     currentUsers = users.map((u: any) => ({
@@ -113,27 +115,23 @@ export const Tasks: React.FC = () => {
                         createdAt: ''
                     }));
                     setAllUsers(currentUsers);
-                    console.log('[Tasks] Users synchronized successfully:', currentUsers.length);
-                } else {
-                    console.warn('[Tasks] getUsers returned non-array:', users);
                 }
             } catch (err) {
-                console.error('[Tasks] Error fetching users from admin endpoint:', err);
-                console.warn('[Tasks] Fallback to empty user list.');
+                console.warn('[Tasks] Error fetching users registry:', err);
             }
-        } else {
-            console.log('[Tasks] User is not admin, skipping global user fetch.');
         }
 
-        // Always fetch tasks, using whatever users we managed to get
-        fetchTasks(currentUsers.length > 0 ? currentUsers : allUsers);
+        // Always fetch tasks
+        await fetchTasks(currentUsers.length > 0 ? currentUsers : allUsers);
     };
 
     useEffect(() => {
-        if (user) {
+        console.log('[Tasks] Effect triggered. User Context Ready:', !!user, 'Name:', user?.fullName);
+        const token = localStorage.getItem('tf_access_token');
+        if (token || user) {
             fetchUsersAndTasks();
         }
-    }, [user, isAdmin]);
+    }, [user?.id, user?.fullName, isAdmin]);
 
     if (!user) {
         return (
@@ -150,13 +148,25 @@ export const Tasks: React.FC = () => {
         }
 
         try {
+            setSaveLoading(true);
             setError(null);
             console.log('[Tasks] Save attempt. Admin:', isAdmin, 'payload:', taskData);
 
-            // Format date to yyyy-MM-ddTHH:mm:ss for Spring Boot compatibility
+            // Show a temporary warning if CORS is detected but let flow continue
             const formatDateForBackend = (dateStr: string) => {
                 const date = new Date(dateStr);
                 return date.toISOString().split('.')[0]; // Removes .SSSZ
+            };
+            const handleSaveError = (err: any) => {
+                console.error('[Tasks] Save error details:', err);
+                const isCorsError = !err.response && err.message === 'Network Error';
+                const serverMessage = err.response?.data?.message || err.message;
+                
+                if (isCorsError) {
+                    alert('Backend Security (CORS) Blocked the Request. Ensure your Spring Boot backend allows the PATCH method and headers for this origin.');
+                } else {
+                    alert('Failed to save task: ' + serverMessage);
+                }
             };
 
             if (selectedTask) {
@@ -185,23 +195,59 @@ export const Tasks: React.FC = () => {
                     };
                     console.log('[Tasks] Payload for Admin Update:', payload);
                     response = await tasksApi.updateAdminTask(taskId, payload);
+
+                    // Dedicated status update if changed
+                    if (taskData.status && taskData.status !== selectedTask.status) {
+                        try {
+                            console.log('[Tasks] Triggering specialized status patch...');
+                            await tasksApi.updateTaskStatus(taskId, taskData.status, 'Admin operational change');
+                        } catch (statusErr: any) {
+                            console.warn('[Tasks] Status patch failed (likely CORS on PATCH method):', statusErr);
+                        }
+                    }
                 } else {
                     // USER update logic
                     const isAssignedByAdmin = selectedTask.creator.role === UserRole.SUPER_ADMIN || selectedTask.creator.fullName === 'Super Admin';
+                    const isCreator = selectedTask.creator.id === String(user?.id);
                     
-                    const payload = {
-                        title: isAssignedByAdmin ? selectedTask.title : (taskData.title || selectedTask.title),
-                        description: isAssignedByAdmin ? selectedTask.description : (taskData.description || selectedTask.description),
-                        deadline: isAssignedByAdmin ? selectedTask.deadline : deadline,
-                        status: taskData.status || selectedTask.status
-                    };
-                    
-                    console.log('[Tasks] Payload for User Update:', payload);
-                    response = await tasksApi.updatePersonalTask(taskId, payload);
+                    // IF user is NOT creator and is assignee of admin task, skip PUT to avoid 500 Permission Error
+                    if (isCreator) {
+                        const payload = {
+                            title: taskData.title || selectedTask.title,
+                            description: taskData.description || selectedTask.description,
+                            deadline: deadline,
+                            status: taskData.status || selectedTask.status
+                        };
+                        console.log('[Tasks] Payload for User Update (Creator):', payload);
+                        response = await tasksApi.updatePersonalTask(taskId, payload);
+                    } else {
+                        console.log('[Tasks] User is assignee. Skipping full PUT, only updating status...');
+                    }
+
+                    // Dedicated status update if changed
+                    if (taskData.status && taskData.status !== selectedTask.status) {
+                        try {
+                            console.log('[Tasks] Triggering specialized status patch (Personnel)...');
+                            const statusResponse = await tasksApi.updateTaskStatus(taskId, taskData.status, 'Personnel status update');
+                            if (!response) response = statusResponse; 
+                        } catch (statusErr: any) {
+                            console.error('[Tasks] Status patch failed:', statusErr);
+                            const isCors = !statusErr.response && statusErr.message === 'Network Error';
+                            if (isCors) {
+                                alert('BACKEND XƏTASI: Sizin WebConfig-də "PATCH" metodu əlavə edilməyib! Zəhmət olmasa .allowedMethods hissəsinə "PATCH" əlavə edin.');
+                            } else {
+                                throw statusErr;
+                            }
+                        }
+                    }
                 }
 
-                console.log('[Tasks] Update Success. Response ID:', response.id);
-                setTasks(prev => prev.map(t => t.id === selectedTask.id ? mapResponseToTask(response, allUsers) : t));
+                console.log('[Tasks] Update Process Complete.');
+                const updatedTask = response ? mapResponseToTask(response, allUsers) : { ...selectedTask, status: taskData.status as TaskStatus };
+                if (taskData.status) {
+                    updatedTask.status = taskData.status as TaskStatus;
+                }
+                setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
             } else {
                 // CREATE Logic
                 let response;
@@ -254,9 +300,17 @@ export const Tasks: React.FC = () => {
 
         } catch (err: any) {
             console.error('[Tasks] Save error:', err);
+            const isCorsError = !err.response && err.message === 'Network Error';
             const serverMessage = err.response?.data?.message || err.message;
-            alert('Failed to save task: ' + serverMessage);
+            
+            if (isCorsError) {
+                alert('Backend Security (CORS) Blocked the Request. Verify your Spring Boot @CrossOrigin configuration allows PATCH methods.');
+            } else {
+                alert('Failed to save task: ' + serverMessage);
+            }
             fetchTasks();
+        } finally {
+            setSaveLoading(false);
         }
     };
 
@@ -269,13 +323,16 @@ export const Tasks: React.FC = () => {
         if (isAdmin) return matchesSearch;
         
         // User visibility: Assigned to them OR Created by them (using names for safety)
-        const myName = (user.fullName || '').toLowerCase().trim();
+        const myNameRaw = (user.fullName || '').toLowerCase().trim();
+        const myEmailRaw = (user.email || '').toLowerCase().trim();
         const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
         const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
+        
+        const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
+        const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
 
-        const isAssignedToMe = assigneeName === myName;
-        const isCreatedByMe = creatorName === myName;
-
+        // If I am neither, but my current user object has a generic name and I might be missing data,
+        // we should be careful. But for now, name/email match is best effort.
         return matchesSearch && (isAssignedToMe || isCreatedByMe);
     });
 
@@ -287,6 +344,14 @@ export const Tasks: React.FC = () => {
                     <p className="text-zinc-500">Operational tasks and strategic objectives.</p>
                 </header>
                 <div className="flex items-center gap-3">
+                    <button 
+                        onClick={fetchUsersAndTasks}
+                        disabled={loading}
+                        className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all group disabled:opacity-50"
+                        title="Refresh Registry"
+                    >
+                        <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                    </button>
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input 
@@ -424,6 +489,7 @@ export const Tasks: React.FC = () => {
                 task={selectedTask}
                 currentUser={user!}
                 users={usersForModal}
+                loading={saveLoading}
             />
         </div>
     );

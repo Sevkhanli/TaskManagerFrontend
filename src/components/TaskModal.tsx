@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, User as UserIcon, AlignLeft, Type } from 'lucide-react';
+import { X, Calendar, User as UserIcon, AlignLeft, Type, RefreshCcw } from 'lucide-react';
 import { Task, TaskStatus, User, UserRole } from '../types';
 
 interface TaskModalProps {
@@ -10,6 +10,7 @@ interface TaskModalProps {
     task?: Task | null;
     currentUser: User;
     users: User[];
+    loading?: boolean;
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({ 
@@ -18,7 +19,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     onSave, 
     task, 
     currentUser,
-    users
+    users,
+    loading = false
 }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -163,12 +165,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                     disabled={!canEditStatus}
                                     className="input-field bg-white"
                                 >
-                                    {Object.values(TaskStatus)
-                                        .filter(s => s !== TaskStatus.OVERDUE)
-                                        .map((s) => (
-                                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                                        ))
-                                    }
+                                    {Object.values(TaskStatus).map((s) => (
+                                        <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -200,12 +199,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </div>
 
                     <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex justify-end gap-3">
-                        <button onClick={onClose} className="btn-secondary">Cancel</button>
+                        <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
                         <button 
                             onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any })}
-                            className="btn-primary px-8"
+                            className="btn-primary px-8 flex items-center gap-2"
+                            disabled={loading}
                         >
-                            {isEditing ? 'Update Task' : 'Create Task'}
+                            {loading ? (
+                                <><RefreshCcw className="w-4 h-4 animate-spin" /> Synchronizing...</>
+                            ) : (
+                                isEditing ? 'Update Task' : 'Create Task'
+                            )}
                         </button>
                     </div>
                 </motion.div>

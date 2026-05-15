@@ -152,6 +152,12 @@ export const tasksApi = {
     getTasks: async (): Promise<TaskResponse[]> => {
         const response = await api.get<TaskResponse[]>('/api/tasks');
         return response.data;
+    },
+    updateTaskStatus: async (id: number, status: string, reason: string = 'Status updated via dashboard'): Promise<TaskResponse> => {
+        const response = await api.patch<TaskResponse>(`/api/tasks/${id}/status`, null, {
+            params: { newStatus: status, reason }
+        });
+        return response.data;
     }
 };
 

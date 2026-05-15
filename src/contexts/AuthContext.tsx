@@ -129,12 +129,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     createdAt: new Date().toISOString()
                 };
                 
-                console.log('[Auth] Login success. Final userData structure:', userData);
+                console.log('[Auth] Login success. Fetching full profile for synchronization...');
                 
-                setUser(userData);
-                localStorage.setItem('tf_user', JSON.stringify(userData));
-                
-                return userData;
+                // Immediately fetch full profile to ensure all fields (fullName, etc) are correct
+                try {
+                    const profile = await authApi.getMe();
+                    const decoded = parseJwt(response.accessToken);
+                    const email = profile.email || decoded?.sub || response.email || credentials.email;
+                    const fullName = profile.fullName || profile.name || response.fullName || response.name || 'User';
+                    
+                    let role = UserRole.USER;
+                    const hasAdminRole = decoded?.roles?.some((r: string) => r === 'ROLE_ADMIN' || r === 'ADMIN');
+                    if (hasAdminRole || decoded?.role === 'admin' || profile.role === 'admin' || email.toLowerCase().includes('admin')) {
+                        role = UserRole.SUPER_ADMIN;
+                    }
+                    
+                    const userData: User = {
+                        id: String(decoded?.userId || email || 'unknown'),
+                        email: email,
+                        fullName: fullName,
+                        role: role,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    console.log('[Auth] Login complete with synced profile:', userData);
+                    setUser(userData);
+                    localStorage.setItem('tf_user', JSON.stringify(userData));
+                    return userData;
+                } catch (profileErr) {
+                    console.warn('[Auth] Post-login profile sync failed, using login response:', profileErr);
+                    // Fallback to login response data if getMe fails
+                    const decoded = parseJwt(response.accessToken);
+                    const userData: User = {
+                        id: String(decoded?.userId || response.email || 'unknown'),
+                        email: response.email || credentials.email,
+                        fullName: response.fullName || response.name || 'User',
+                        role: response.role === 'admin' ? UserRole.SUPER_ADMIN : UserRole.USER,
+                        createdAt: new Date().toISOString()
+                    };
+                    setUser(userData);
+                    localStorage.setItem('tf_user', JSON.stringify(userData));
+                    return userData;
+                }
             } else {
                 console.warn('[Auth] Login failed:', response.message);
                 throw new Error(response.message || 'Login failed');
