@@ -167,6 +167,9 @@ export const tasksApi = {
     getGroupedTasks: async (): Promise<GroupedTaskResponse[]> => {
         const response = await api.get<GroupedTaskResponse[]>('/api/tasks/grouped');
         return response.data;
+    },
+    deleteTask: async (id: number): Promise<void> => {
+        await api.delete(`/api/tasks/${id}`);
     }
 };
 

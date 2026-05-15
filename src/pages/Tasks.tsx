@@ -167,6 +167,23 @@ export const Tasks: React.FC = () => {
         );
     }
 
+    const handleDeleteTask = async (id: number) => {
+        try {
+            setSaveLoading(true);
+            await tasksApi.deleteTask(id);
+            setTasks(prev => prev.filter(t => Number(t.id) !== id));
+            setIsModalOpen(false);
+            setSelectedTask(null);
+            setTimeout(fetchUsersAndTasks, 500);
+        } catch (err: any) {
+            console.error('Delete failed:', err);
+            const serverMessage = err.response?.data?.message || err.message;
+            alert('Failed: ' + serverMessage);
+        } finally {
+            setSaveLoading(false);
+        }
+    };
+
     const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string }) => {
         if (!taskData.title?.trim()) {
             alert('Mission title is mandatory for registry.');
@@ -647,6 +664,7 @@ export const Tasks: React.FC = () => {
                     setSelectedTask(null);
                 }}
                 onSave={handleSaveTask}
+                onDelete={handleDeleteTask}
                 task={selectedTask}
                 currentUser={user!}
                 users={usersForModal}

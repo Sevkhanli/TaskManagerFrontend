@@ -7,6 +7,7 @@ interface TaskModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (task: Partial<Task>) => void;
+    onDelete?: (id: number) => void;
     task?: Task | null;
     currentUser: User;
     users: User[];
@@ -17,6 +18,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     isOpen, 
     onClose, 
     onSave, 
+    onDelete,
     task, 
     currentUser,
     users,
@@ -32,16 +34,24 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const isEditing = !!task;
     
     // Permission Logic:
-    // 1. Admin can edit everything.
-    // 2. User can edit everything of their OWN self-created tasks (where they are the creator).
+    // 1. Admin can edit/delete everything.
+    // 2. User can edit/delete everything of their OWN self-created tasks (where they are the creator).
     // 3. User can ONLY edit status if the task was assigned to them by an Admin.
-    // Use creator name "Super Admin" as a reliable fallback for admin check
     const isTaskAssignedByAdmin = task && (task.creator.role === UserRole.SUPER_ADMIN || task.creator.fullName === 'Super Admin');
-    const isOwner = task && (task.creator.id === currentUser.id || (task.creator.fullName === currentUser.fullName && currentUser.fullName !== 'Unknown'));
+    const isOwner = task && (task.creator.id === currentUser.id || String(task.creator.id) === String(currentUser.id));
 
     // Users can edit everything except for tasks created by Admin.
     const canEditMetadata = isAdmin || !isEditing || (isEditing && isOwner && !isTaskAssignedByAdmin);
-    const canEditStatus = true; // Everyone can edit status of their assigned tasks
+    const canEditStatus = true; 
+    const canDelete = isEditing && (isAdmin || isOwner);
+
+    const handleDelete = () => {
+        if (task && onDelete) {
+            if (window.confirm(`Are you sure you want to delete "${task.title}"?`)) {
+                onDelete(Number(task.id));
+            }
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -198,19 +208,32 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         )}
                     </div>
 
-                    <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex justify-end gap-3">
-                        <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
-                        <button 
-                            onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any })}
-                            className="btn-primary px-8 flex items-center gap-2"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <><RefreshCcw className="w-4 h-4 animate-spin" /> Synchronizing...</>
-                            ) : (
-                                isEditing ? 'Update Task' : 'Create Task'
+                    <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between">
+                        <div>
+                            {canDelete && (
+                                <button 
+                                    onClick={handleDelete}
+                                    className="text-xs font-bold text-red-500 hover:text-red-600 uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                                    disabled={loading}
+                                >
+                                    <X className="w-3 h-3" /> Terminate Objective
+                                </button>
                             )}
-                        </button>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
+                            <button 
+                                onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any })}
+                                className="btn-primary px-8 flex items-center gap-2"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <><RefreshCcw className="w-4 h-4 animate-spin" /> Synchronizing...</>
+                                ) : (
+                                    isEditing ? 'Update Task' : 'Create Task'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>
