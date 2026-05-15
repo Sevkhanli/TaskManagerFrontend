@@ -9,16 +9,43 @@ import {
     MoreVertical, 
     Search,
     ShieldAlert,
-    XCircle
+    XCircle,
+    RefreshCcw
 } from 'lucide-react';
 import { Penalty, PenaltyStatus, PenaltyType, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
+import { penaltyApi } from '../api';
 
 export const Penalties: React.FC = () => {
     const { user } = useAuth();
+    const [penalties, setPenalties] = useState<Penalty[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const isAdmin = user?.role === UserRole.SUPER_ADMIN;
+
+    const fetchPenalties = async () => {
+        setLoading(true);
+        try {
+            const data = isAdmin 
+                ? await penaltyApi.getAllPenalties() 
+                : await penaltyApi.getMyPenalties();
+            setPenalties(data);
+            setError(null);
+        } catch (err) {
+            console.error('[Penalties] Fetch error:', err);
+            setError('Failed to retrieve penalty records.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        if (user) {
+            fetchPenalties();
+        }
+    }, [user, isAdmin]);
 
     console.log('[Penalties] Rendering. User:', user?.email, 'isAdmin:', isAdmin);
 
@@ -30,65 +57,18 @@ export const Penalties: React.FC = () => {
         );
     }
 
-    // Mock Penalties
-    const mockPenalties: Penalty[] = [
-        {
-            id: 'p1',
-            user: { id: 'user_1', fullName: 'Farid Abdullayev', email: '', role: UserRole.USER, createdAt: '' },
-            task: { id: 't1', title: 'Infrastructure Audit' } as any,
-            penaltyType: PenaltyType.DEADLINE_MISSED,
-            status: PenaltyStatus.PENDING,
-            amount: 60,
-            currency: 'AZN',
-            daysOverdue: 3,
-            description: 'Failed to complete task by May 09, 2026.',
-            evidenceRequired: false,
-            evidenceProvided: false,
-            createdAt: '2026-05-12T10:00:00Z'
-        },
-        {
-            id: 'p2',
-            user: { id: 'user_2', fullName: 'Leyla Gurbanova', email: '', role: UserRole.USER, createdAt: '' },
-            task: { id: 't2', title: 'Legacy Database Cleanup' } as any,
-            penaltyType: PenaltyType.STATUS_NOT_COMPLETED,
-            status: PenaltyStatus.PAID,
-            amount: 25,
-            currency: 'AZN',
-            description: 'Task marked as done but requirements were not fully met.',
-            evidenceRequired: true,
-            evidenceProvided: true,
-            evidenceDescription: 'Fixed the missing indexes.',
-            createdAt: '2026-05-10T14:30:00Z',
-            paidAt: '2026-05-11T09:12:00Z'
-        },
-        {
-            id: 'p3',
-            user: { id: 'admin_1', fullName: 'Super Admin', email: '', role: UserRole.SUPER_ADMIN, createdAt: '' },
-            task: { id: 't3', title: 'Security Protocol' } as any,
-            penaltyType: PenaltyType.FALSE_COMPLETION,
-            status: PenaltyStatus.PENDING,
-            amount: 100,
-            currency: 'AZN',
-            description: 'Incomplete security review submitted.',
-            evidenceRequired: true,
-            evidenceProvided: false,
-            createdAt: '2026-05-13T08:00:00Z'
-        }
-    ];
-
-    // Filter Logic: User sees only their own, Admin sees everything
-    const filteredPenalties = isAdmin 
-        ? mockPenalties.filter(p => 
-            p.user?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.task?.title?.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        : mockPenalties.filter(p => p.user?.id === user?.id);
+    // Filter Logic
+    const filteredPenalties = penalties.filter(p => 
+        p.user?.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.task?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const stats = React.useMemo(() => {
         return [
-            { label: 'Total Unpaid', value: `${filteredPenalties.filter(p => p.status === PenaltyStatus.PENDING).reduce((acc, p) => acc + p.amount, 0).toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
-            { label: 'Active Disputes', value: filteredPenalties.filter(p => p.evidenceRequired && !p.evidenceProvided).length.toString(), icon: AlertCircle, color: 'text-amber-600' },
-            { label: 'Settled', value: filteredPenalties.filter(p => p.status === PenaltyStatus.PAID).length.toString(), icon: CheckCircle2, color: 'text-green-600' }
+            { label: 'Total Unpaid', value: `${filteredPenalties.filter(p => p && p.status === PenaltyStatus.PENDING).reduce((acc, p) => acc + (p.amount || 0), 0).toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
+            { label: 'Active Disputes', value: filteredPenalties.filter(p => p && p.evidenceRequired && !p.evidenceProvided).length.toString(), icon: AlertCircle, color: 'text-amber-600' },
+            { label: 'Settled', value: filteredPenalties.filter(p => p && p.status === PenaltyStatus.PAID).length.toString(), icon: CheckCircle2, color: 'text-green-600' }
         ];
     }, [filteredPenalties]);
 
@@ -106,6 +86,14 @@ export const Penalties: React.FC = () => {
                     </p>
                 </header>
                 <div className="flex items-center gap-3">
+                    <button 
+                        onClick={fetchPenalties}
+                        disabled={loading}
+                        className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all group disabled:opacity-50"
+                        title="Refresh Registry"
+                    >
+                        <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                    </button>
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input 
@@ -134,7 +122,18 @@ export const Penalties: React.FC = () => {
             </div>
 
             <div className="grid gap-4">
-                {filteredPenalties.length > 0 ? (
+                {loading ? (
+                    <div className="p-12 card text-center flex flex-col items-center gap-4">
+                        <RefreshCcw className="w-8 h-8 animate-spin text-zinc-300" />
+                        <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-[0.2em]">Synchronizing financial records...</span>
+                    </div>
+                ) : error ? (
+                    <div className="p-12 card text-center flex flex-col items-center gap-4 bg-red-50/30 border-red-100">
+                        <AlertCircle className="w-8 h-8 text-red-300" />
+                        <span className="text-[10px] font-mono text-red-400 uppercase tracking-[0.2em]">{error}</span>
+                        <button onClick={fetchPenalties} className="btn-secondary text-[10px] py-1.5 px-4">Retry Sync</button>
+                    </div>
+                ) : filteredPenalties.length > 0 ? (
                     filteredPenalties.map((penalty) => (
                         <div key={penalty.id} className="card group overflow-hidden">
                             <div className="flex flex-col md:flex-row md:items-stretch">
@@ -148,25 +147,28 @@ export const Penalties: React.FC = () => {
                                     <div className="flex-1 space-y-2">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-zinc-100 text-zinc-500 uppercase tracking-tighter">
-                                                {penalty.penaltyType.replace('_', ' ')}
+                                                {penalty.penaltyType?.replace('_', ' ') || 'SYSTEM_VIOLATION'}
                                             </span>
-                                            {penalty.daysOverdue && (
+                                            {penalty.daysOverdue !== undefined && penalty.daysOverdue > 0 && (
                                                 <span className="text-[10px] font-bold text-red-600 border border-red-100 px-2 py-0.5 rounded">
                                                     {penalty.daysOverdue} DAYS OVERDUE
                                                 </span>
                                             )}
                                         </div>
                                         <h4 className="font-bold text-lg text-zinc-900 group-hover:text-zinc-600 transition-colors">
-                                            {isAdmin ? `${penalty.user.fullName} / ` : ''}<span className="text-zinc-400 font-medium">{penalty.task.title}</span>
+                                            {isAdmin ? `${penalty.user?.fullName || 'User'} / ` : ''}
+                                            <span className="text-zinc-400 font-medium">
+                                                {penalty.task?.title || (penalty as any).taskTitle || (penalty as any).taskName || 'SLA Violation Task'}
+                                            </span>
                                         </h4>
                                         <p className="text-sm text-zinc-500 flex items-center gap-2">
-                                            <FileText className="w-3 h-3" /> {penalty.description}
+                                            <FileText className="w-3 h-3" /> {penalty.description || 'SLA Violation Alert'}
                                         </p>
                                     </div>
 
                                     <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6 md:min-w-[140px]">
                                         <p className="text-2xl font-mono font-black tracking-tighter">
-                                            {penalty.amount.toFixed(2)} <span className="text-xs font-bold text-zinc-400">{penalty.currency}</span>
+                                            {(penalty.amount || 0).toFixed(2)} <span className="text-xs font-bold text-zinc-400">{penalty.currency || 'AZN'}</span>
                                         </p>
                                         <div className="flex items-center gap-2">
                                             {penalty.status === PenaltyStatus.PENDING ? (

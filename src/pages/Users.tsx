@@ -1,11 +1,123 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, Mail, Shield, User as UserIcon, Trash2, Edit3, Key, MoreVertical, RefreshCcw } from 'lucide-react';
-import { User, UserRole } from '../types';
+import { UserPlus, Search, Mail, Shield, User as UserIcon, Trash2, Edit3, Key, MoreVertical, RefreshCcw, DollarSign, AlertCircle, CheckCircle2, XCircle, X } from 'lucide-react';
+import { User, UserRole, UserPenaltyStats } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { authApi } from '../api';
+import { authApi, penaltyApi } from '../api';
+
+const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userId, onClose }) => {
+    const [summary, setSummary] = useState<UserPenaltyStats | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            setLoading(true);
+            try {
+                const data = await penaltyApi.getUserSummary(userId);
+                setSummary(data);
+            } catch (err: any) {
+                console.error('[SummaryModal] Error:', err);
+                setError('Failed to fetch user summary.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSummary();
+    }, [userId]);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-zinc-100"
+            >
+                <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                    <div>
+                        <h3 className="text-xl font-bold text-zinc-900">User Performance Summary</h3>
+                        <p className="text-sm text-zinc-500 font-mono tracking-tighter">SEC_ID: {userId}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-900">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-8">
+                    {loading ? (
+                        <div className="flex flex-col items-center gap-4 py-12">
+                            <RefreshCcw className="w-8 h-8 animate-spin text-zinc-300" />
+                            <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Analyzing Performance Data...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="p-8 text-center bg-red-50 rounded-xl border border-red-100">
+                            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
+                            <p className="text-red-600 font-bold mb-1">DATA_FET_ERR</p>
+                            <p className="text-red-400 text-sm">{error}</p>
+                        </div>
+                    ) : summary && (
+                        <div className="space-y-8">
+                            <div className="flex items-center gap-4 p-4 bg-zinc-900 text-white rounded-2xl">
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                                    <UserIcon className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest leading-none mb-1">Operative Identity</p>
+                                    <p className="text-lg font-bold">{summary.userName}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Total Liability</p>
+                                    <p className="text-2xl font-black tracking-tighter text-zinc-900">
+                                        {(summary.totalPenaltyAmount ?? summary.totalPendingAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-zinc-400">{summary.currency}</span>
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                                    <p className="text-[10px] font-mono text-red-400 uppercase tracking-widest mb-2">Pending Balance</p>
+                                    <p className="text-2xl font-black tracking-tighter text-red-600">
+                                        {(summary.pendingAmount ?? summary.totalPendingAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-red-400">{summary.currency}</span>
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Settled Amount</p>
+                                    <p className="text-2xl font-black tracking-tighter text-zinc-900">
+                                        {(summary.paidAmount ?? 0).toFixed(2)} <span className="text-xs font-bold text-zinc-400">{summary.currency}</span>
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-2">Waived Credits</p>
+                                    <p className="text-2xl font-black tracking-tighter text-emerald-600">
+                                        {summary.waivedPenalties ?? 0} <span className="text-xs font-bold text-zinc-400">CASES</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-zinc-400" /> Total Penalties Issued</span>
+                                    <span className="font-bold text-zinc-900">{summary.totalPenaltyCount ?? summary.totalPenalties ?? 0}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Active Violations</span>
+                                    <span className="font-bold text-red-600">{summary.activePenalties ?? summary.pendingPenalties ?? 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex justify-end">
+                    <button onClick={onClose} className="btn-secondary px-8 font-bold text-[11px] tracking-widest">CLOSE FILE</button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
 
 export const Users: React.FC = () => {
     const [isAddingUser, setIsAddingUser] = useState(false);
+    const [selectedUserForSummary, setSelectedUserForSummary] = useState<string | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -184,6 +296,13 @@ export const Users: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {selectedUserForSummary && (
+                <SummaryModal 
+                    userId={selectedUserForSummary} 
+                    onClose={() => setSelectedUserForSummary(null)} 
+                />
+            )}
+
             <div className="card overflow-hidden">
                 <table className="w-full text-sm text-left border-collapse">
                     <thead>
@@ -249,6 +368,13 @@ export const Users: React.FC = () => {
                                     <td className="px-6 py-4 text-zinc-500 font-mono text-[11px]">{u.createdAt?.split('T')[0]}</td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => setSelectedUserForSummary(u.id)}
+                                                className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"
+                                                title="View Performance Summary"
+                                            >
+                                                <DollarSign className="w-4 h-4" />
+                                            </button>
                                             <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"><Edit3 className="w-4 h-4" /></button>
                                             <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"><Key className="w-4 h-4" /></button>
                                             <button className="p-2 text-red-400 hover:text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>

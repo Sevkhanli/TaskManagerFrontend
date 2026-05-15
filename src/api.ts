@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { PenaltyConfig, TaskCompletionRequest, PenaltySummary, Penalty, UserPenaltyStats } from './types';
 
 const API_BASE_URL = 'http://localhost:8080';
 
@@ -170,6 +171,37 @@ export const tasksApi = {
     },
     deleteTask: async (id: number): Promise<void> => {
         await api.delete(`/api/tasks/${id}`);
+    }
+};
+
+export const penaltyApi = {
+    getConfig: async (): Promise<PenaltyConfig> => {
+        const response = await api.get<PenaltyConfig>('/api/penalty-config');
+        return response.data;
+    },
+    saveConfig: async (config: Partial<PenaltyConfig>): Promise<PenaltyConfig> => {
+        const response = await api.post<PenaltyConfig>('/api/penalty-config', config);
+        return response.data;
+    },
+    completeTask: async (request: TaskCompletionRequest): Promise<string> => {
+        const response = await api.post<string>('/api/penalties/complete-task', request);
+        return response.data;
+    },
+    getMySummary: async (): Promise<PenaltySummary> => {
+        const response = await api.get<PenaltySummary>('/api/penalties/my-summary');
+        return response.data;
+    },
+    getMyPenalties: async (): Promise<Penalty[]> => {
+        const response = await api.get<Penalty[]>('/api/penalties/my-penalties');
+        return response.data;
+    },
+    getAllPenalties: async (): Promise<Penalty[]> => {
+        const response = await api.get<Penalty[]>('/api/penalties');
+        return response.data;
+    },
+    getUserSummary: async (userId: string | number): Promise<UserPenaltyStats> => {
+        const response = await api.get<UserPenaltyStats>(`/api/penalties/user/${userId}/summary`);
+        return response.data;
     }
 };
 

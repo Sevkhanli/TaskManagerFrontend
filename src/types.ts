@@ -45,6 +45,22 @@ export interface Task {
     isDeleted: boolean;
 }
 
+export interface PenaltySummary {
+    userId: number;
+    userName: string;
+    totalPendingAmount: number;
+    totalPenalties: number;
+    pendingPenalties: number;
+    paidPenalties: number;
+    currency: string;
+}
+
+export interface TaskCompletionRequest {
+    taskId: number;
+    completionDescription: string;
+    evidenceLink?: string;
+}
+
 export interface Penalty {
     id: string;
     user: User;
@@ -65,16 +81,32 @@ export interface Penalty {
     waiveReason?: string;
 }
 
+export interface UserPenaltyStats {
+    userId: number;
+    userName: string;
+    totalPenaltyAmount?: number;
+    paidAmount?: number;
+    pendingAmount?: number;
+    totalPenaltyCount?: number;
+    activePenalties?: number;
+    waivedPenalties?: number;
+    totalPendingAmount?: number;
+    totalPenalties?: number;
+    pendingPenalties?: number;
+    paidPenalties?: number;
+    currency: string;
+}
+
 export interface PenaltyConfig {
     id: string;
     deadlineMissedAmount: number;
     statusNotCompletedAmount: number;
     falseCompletionAmount: number;
     currency: string;
-    isActive: boolean;
+    active: boolean; // Changed from isActive to active
     createdAt: string;
     updatedAt: string;
-    updatedBy: User;
+    updatedByName: string; // Changed from updatedBy: User to updatedByName: string
 }
 
 export interface StatusHistory {

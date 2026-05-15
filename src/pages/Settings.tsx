@@ -1,13 +1,74 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Database, Zap, Lock, BellRing, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Database, Zap, Lock, BellRing, Save, History, RefreshCcw } from 'lucide-react';
+import { penaltyApi } from '../api';
+import { PenaltyConfig } from '../types';
 
 export const Settings: React.FC = () => {
     const [saved, setSaved] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [saveLoading, setSaveLoading] = useState(false);
+    const [config, setConfig] = useState<Partial<PenaltyConfig>>({
+        deadlineMissedAmount: 20,
+        statusNotCompletedAmount: 50,
+        falseCompletionAmount: 200,
+        currency: 'AZN'
+    });
+    const [lastUpdatedInfo, setLastUpdatedInfo] = useState<string>('');
 
-    const handleSave = () => {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+    useEffect(() => {
+        fetchConfig();
+    }, []);
+
+    const fetchConfig = async () => {
+        setLoading(true);
+        try {
+            const data = await penaltyApi.getConfig();
+            if (data) {
+                setConfig({
+                    deadlineMissedAmount: data.deadlineMissedAmount,
+                    statusNotCompletedAmount: data.statusNotCompletedAmount,
+                    falseCompletionAmount: data.falseCompletionAmount,
+                    currency: data.currency
+                });
+                
+                const date = new Date(data.updatedAt).toLocaleString();
+                setLastUpdatedInfo(`Last modified by ${data.updatedByName || 'Admin'} on ${date}`);
+            }
+        } catch (err) {
+            console.error('Failed to fetch penalty config:', err);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const handleSave = async () => {
+        setSaveLoading(true);
+        try {
+            await penaltyApi.saveConfig(config);
+            setSaved(true);
+            fetchConfig(); // Refresh data
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            console.error('Failed to save penalty config:', err);
+            alert('Failed to save configuration. Please check your permissions.');
+        } finally {
+            setSaveLoading(false);
+        }
+    };
+
+    const updateConfigField = (field: keyof PenaltyConfig, value: string) => {
+        const numValue = parseFloat(value) || 0;
+        setConfig(prev => ({ ...prev, [field]: numValue }));
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                <RefreshCcw className="w-8 h-8 animate-spin text-zinc-300" />
+                <p className="text-zinc-400 font-mono text-sm tracking-widest uppercase">Initializing Core Config...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl space-y-12 pb-12">
@@ -31,33 +92,55 @@ export const Settings: React.FC = () => {
                             <div>
                                 <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-3">Deadline Breach / Per Diem</label>
                                 <div className="flex items-center gap-4">
-                                    <input type="number" defaultValue="20" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" />
-                                    <span className="text-zinc-500 font-bold">AZN</span>
+                                    <input 
+                                        type="number" 
+                                        value={config.deadlineMissedAmount} 
+                                        onChange={(e) => updateConfigField('deadlineMissedAmount', e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
+                                    />
+                                    <span className="text-zinc-500 font-bold">{config.currency}</span>
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-3">Status Misalignment / Flat Fee</label>
                                 <div className="flex items-center gap-4">
-                                    <input type="number" defaultValue="50" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" />
-                                    <span className="text-zinc-500 font-bold">AZN</span>
+                                    <input 
+                                        type="number" 
+                                        value={config.statusNotCompletedAmount} 
+                                        onChange={(e) => updateConfigField('statusNotCompletedAmount', e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
+                                    />
+                                    <span className="text-zinc-500 font-bold">{config.currency}</span>
                                 </div>
                             </div>
 
                             <div>
                                 <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mb-3">Integrity Violation / Max Cap</label>
                                 <div className="flex items-center gap-4">
-                                    <input type="number" defaultValue="200" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" />
-                                    <span className="text-zinc-500 font-bold">AZN</span>
+                                    <input 
+                                        type="number" 
+                                        value={config.falseCompletionAmount} 
+                                        onChange={(e) => updateConfigField('falseCompletionAmount', e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
+                                    />
+                                    <span className="text-zinc-500 font-bold">{config.currency}</span>
                                 </div>
                             </div>
 
                             <button 
                                 onClick={handleSave}
-                                className="w-full py-4 bg-white text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-100 transition-all flex items-center justify-center gap-2"
+                                disabled={saveLoading}
+                                className="w-full py-4 bg-white text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                {saved ? <ShieldCheck className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                                {saved ? 'System Synchronized' : 'Apply Global Changes'}
+                                {saveLoading ? (
+                                    <RefreshCcw className="w-4 h-4 animate-spin" />
+                                ) : saved ? (
+                                    <ShieldCheck className="w-4 h-4" />
+                                ) : (
+                                    <Save className="w-4 h-4" />
+                                )}
+                                {saveLoading ? 'Syncing...' : saved ? 'System Synchronized' : 'Apply Global Changes'}
                             </button>
                         </div>
                     </div>
@@ -118,13 +201,10 @@ export const Settings: React.FC = () => {
                     <div className="p-8 rounded-2xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
                         <History className="w-8 h-8 text-zinc-300 mb-4" />
                         <p className="text-sm font-medium text-zinc-500">Configuration History</p>
-                        <p className="text-xs text-zinc-400 mt-1 max-w-[200px]">Last modified by Super Admin on May 12, 2026 at 11:20 GMT</p>
+                        <p className="text-xs text-zinc-400 mt-1 max-w-[200px]">{lastUpdatedInfo || 'No recent modifications recorded.'}</p>
                     </div>
                 </section>
             </div>
         </div>
     );
 };
-
-// Quick fix for missing History icon in Settings
-import { History } from 'lucide-react';

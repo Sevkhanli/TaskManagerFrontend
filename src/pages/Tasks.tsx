@@ -4,7 +4,7 @@ import { Task, TaskStatus, User, UserRole } from '../types';
 import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO, isPast } from 'date-fns';
-import { tasksApi, TaskResponse, authApi, GroupedTaskResponse } from '../api';
+import { tasksApi, TaskResponse, authApi, GroupedTaskResponse, penaltyApi } from '../api';
 
 interface GroupedTask {
     date: string;
@@ -184,7 +184,7 @@ export const Tasks: React.FC = () => {
         }
     };
 
-    const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string }) => {
+    const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string, completionDescription?: string, evidenceLink?: string }) => {
         if (!taskData.title?.trim()) {
             alert('Mission title is mandatory for registry.');
             return;
@@ -198,6 +198,49 @@ export const Tasks: React.FC = () => {
             console.log('Mode:', selectedTask ? 'UPDATE' : 'CREATE');
             console.log('Selected Task ID:', selectedTask?.id);
             console.log('Payload from Modal:', taskData);
+
+            // Special Case: Task Completion Flow
+            const isCompleting = selectedTask && taskData.status === TaskStatus.COMPLETED && selectedTask.status !== TaskStatus.COMPLETED;
+
+            if (isCompleting) {
+                console.log('[Tasks] Triggering specialized completion flow...');
+                try {
+                    await penaltyApi.completeTask({
+                        taskId: parseInt(selectedTask!.id),
+                        completionDescription: taskData.completionDescription || 'Mission objectives finalized.',
+                        evidenceLink: taskData.evidenceLink
+                    });
+                    console.log('[Tasks] Specialized completion success.');
+                    
+                    // Delay update to facilitate backend state synchronization
+                    console.log('[Tasks] Triggering world sync in 2s...');
+                    setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('penalty-update'));
+                        fetchUsersAndTasks();
+                    }, 2000);
+                    setIsModalOpen(false);
+                    setSelectedTask(null);
+                    return; // EXIT EARLY
+                } catch (completeErr: any) {
+                    console.error('[Tasks] Completion flow failed:', completeErr);
+                    
+                    const serverMessage = completeErr.response?.data?.message || completeErr.message;
+                    
+                    // If message contains penalty confirmation, sync anyway
+                    if (serverMessage.includes('Cərimə tətbiq olun')) {
+                        console.log('[Tasks] Penalty applied in background. Triggering sync...');
+                        setTimeout(() => window.dispatchEvent(new CustomEvent('penalty-update')), 3000);
+                    } else {
+                        window.dispatchEvent(new CustomEvent('penalty-update'));
+                    }
+
+                    alert('Məlumat: ' + serverMessage);
+                    
+                    // Even if completion fails, we might want to refresh to see if a penalty was added
+                    setTimeout(fetchUsersAndTasks, 1000);
+                    return; // STOP IF COMPLETION FAILED
+                }
+            }
 
             const formatDateForBackend = (dateStr: string) => {
                 const date = new Date(dateStr);
@@ -301,26 +344,14 @@ export const Tasks: React.FC = () => {
                 }
                 
                 console.log('Create Success. Response ID:', response.id);
-                const newTask = mapResponseToTask(response, allUsers);
-                
-                setTasks(prev => {
-                    const idExists = prev.some(t => String(t.id) === String(newTask.id));
-                    if (idExists) {
-                        console.error(`[CRITICAL] Backend returned ID ${newTask.id} which ALREADY EXISTS in the local registry! This will cause UI overlaps.`);
-                    }
-                    // If creating, we add it. If ID exists, we'll have two in the list (for debugging purposes) 
-                    // or we replace it if we really trust the backend. 
-                    // To show the user the conflict, let's keep the filter but add a visual debug warning in console.
-                    return [newTask, ...prev.filter(t => String(t.id) !== String(newTask.id))];
-                });
             }
             
             console.groupEnd();
             setIsModalOpen(false);
             setSelectedTask(null);
             
-            // Sync after a delay
-            setTimeout(fetchUsersAndTasks, 800);
+            // Critical: Rely on server refetch to avoid local ID collision logic
+            setTimeout(fetchUsersAndTasks, 300);
 
         } catch (err: any) {
             console.error('Operation failed:', err);

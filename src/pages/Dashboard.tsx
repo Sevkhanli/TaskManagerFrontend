@@ -8,7 +8,8 @@ import {
     AlertTriangle,
     BarChart3,
     Zap,
-    TrendingUp
+    TrendingUp,
+    BellRing
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
@@ -149,6 +150,3 @@ export const Dashboard: React.FC = () => {
         </div>
     );
 };
-
-// Fix for missing BellRing in Dashboard
-import { BellRing } from 'lucide-react';

@@ -6,7 +6,7 @@ import { Task, TaskStatus, User, UserRole } from '../types';
 interface TaskModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (task: Partial<Task>) => void;
+    onSave: (task: Partial<Task> & { completionDescription?: string, evidenceLink?: string }) => void;
     onDelete?: (id: number) => void;
     task?: Task | null;
     currentUser: User;
@@ -29,6 +29,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
     const [deadline, setDeadline] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
+    const [completionDescription, setCompletionDescription] = useState('');
+    const [evidenceLink, setEvidenceLink] = useState('');
 
     const isAdmin = currentUser.role === UserRole.SUPER_ADMIN;
     const isEditing = !!task;
@@ -44,6 +46,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const canEditMetadata = isAdmin || !isEditing || (isEditing && isOwner && !isTaskAssignedByAdmin);
     const canEditStatus = true; 
     const canDelete = isEditing && (isAdmin || isOwner);
+
+    const isCompleting = status === TaskStatus.COMPLETED && task?.status !== TaskStatus.COMPLETED;
 
     const handleDelete = () => {
         if (task && onDelete) {
@@ -75,12 +79,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             setStatus(task.status);
             setDeadline(task.deadline.split('T')[0]);
             setAssigneeId(task.assignee.id);
+            setCompletionDescription('');
+            setEvidenceLink('');
         } else {
             setTitle('');
             setDescription('');
             setStatus(TaskStatus.TODO);
             setDeadline(new Date().toISOString().split('T')[0]);
             setAssigneeId(currentUser.id);
+            setCompletionDescription('');
+            setEvidenceLink('');
         }
     }, [task, currentUser, isOpen]);
 
@@ -100,9 +108,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10 border border-zinc-200"
+                    className="w-full max-w-xl max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10 border border-zinc-200 flex flex-col"
                 >
-                    <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+                    <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <div>
                             <h3 className="text-xl font-bold text-zinc-900">
                                 {isEditing ? 'Modify Task Details' : 'Launch New Task'}
@@ -118,7 +126,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         </button>
                     </div>
 
-                    <div className="p-8 space-y-6">
+                    <div className="p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar min-h-0">
                         {/* Title Field */}
                         <div>
                             <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">
@@ -206,9 +214,48 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 <p className="text-xs font-medium">Self-created task: You have full control over this objective.</p>
                             </div>
                         )}
+                        {/* Completion Fields (Conditional) */}
+                        {isCompleting && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="p-6 bg-zinc-900 rounded-2xl space-y-4 border border-zinc-800"
+                            >
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                    <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Completion Report Required</h4>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Detailed Report</label>
+                                    <textarea 
+                                        value={completionDescription}
+                                        onChange={(e) => setCompletionDescription(e.target.value)}
+                                        placeholder="What exactly was finalized?"
+                                        rows={2}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xs text-white"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Evidence Link (Git/Doc)</label>
+                                    <input 
+                                        type="text"
+                                        value={evidenceLink}
+                                        onChange={(e) => setEvidenceLink(e.target.value)}
+                                        placeholder="https://..."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xs text-white"
+                                    />
+                                </div>
+                                
+                                <p className="text-[10px] text-zinc-500 italic">
+                                    Note: System will validate deadline integrity and apply late penalties if applicable.
+                                </p>
+                            </motion.div>
+                        )}
                     </div>
 
-                    <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between">
+                    <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
                         <div>
                             {canDelete && (
                                 <button 
@@ -223,14 +270,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         <div className="flex gap-3">
                             <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
                             <button 
-                                onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any })}
+                                onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any, completionDescription, evidenceLink })}
                                 className="btn-primary px-8 flex items-center gap-2"
                                 disabled={loading}
                             >
                                 {loading ? (
                                     <><RefreshCcw className="w-4 h-4 animate-spin" /> Synchronizing...</>
                                 ) : (
-                                    isEditing ? 'Update Task' : 'Create Task'
+                                    isEditing ? (isCompleting ? 'Finalize Mission' : 'Update Task') : 'Create Task'
                                 )}
                             </button>
                         </div>

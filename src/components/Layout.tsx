@@ -9,13 +9,16 @@ import {
     LogOut,
     Menu,
     X,
-    Bell
+    Bell,
+    Wallet,
+    RefreshCcw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { UserRole } from '../types';
+import { PenaltySummary, UserRole } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { penaltyApi } from '../api';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -26,6 +29,33 @@ export const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+    const [summary, setSummary] = React.useState<PenaltySummary | null>(null);
+
+    React.useEffect(() => {
+        if (user) {
+            fetchSummary();
+        }
+    }, [user, location.pathname]); // Refresh when page changes or user changes
+
+    React.useEffect(() => {
+        const handleUpdate = () => {
+            console.log('[Layout] Penalty update event received, refetching in 1s...');
+            setTimeout(fetchSummary, 1500);
+        };
+        window.addEventListener('penalty-update', handleUpdate);
+        return () => window.removeEventListener('penalty-update', handleUpdate);
+    }, [user]);
+
+    const fetchSummary = async () => {
+        console.log('[Layout] Fetching summary for user:', user?.id);
+        try {
+            const data = await penaltyApi.getMySummary();
+            console.log('[Layout] Summary received:', data);
+            setSummary(data);
+        } catch (err) {
+            console.error('[Layout] Failed to fetch summary:', err);
+        }
+    };
 
     console.log('[Layout] Rendering for user:', user?.email, 'at', location.pathname, 'loading:', loading);
 
@@ -94,6 +124,31 @@ export const Layout: React.FC = () => {
                             </Link>
                         );
                     })}
+
+                    {/* Penalty Summary Mini-Widget */}
+                    {summary && (
+                        <div className="mt-8 px-3 py-4 rounded-xl bg-red-50/50 border border-red-100/50 group/liability relative">
+                            <button 
+                                onClick={fetchSummary}
+                                className="absolute top-2 right-2 p-1 text-red-300 hover:text-red-500 transition-colors opacity-0 group-hover/liability:opacity-100"
+                                title="Refresh Liability"
+                            >
+                                <RefreshCcw className="w-2.5 h-2.5" />
+                            </button>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Wallet className="w-3 h-3 text-red-500" />
+                                <span className="text-[10px] font-bold text-red-600 uppercase tracking-widest">Financial Liability</span>
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-xl font-black text-red-700">{summary.totalPendingAmount}</span>
+                                <span className="text-[10px] font-bold text-red-500">{summary.currency}</span>
+                            </div>
+                            <div className="mt-2 text-[10px] text-red-400 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-2.5 h-2.5" />
+                                {summary.pendingPenalties} UNRESOLVED BREACHES
+                            </div>
+                        </div>
+                    )}
                 </nav>
 
                 <div className="p-4 border-t border-zinc-200 bg-white">
@@ -203,6 +258,30 @@ export const Layout: React.FC = () => {
                                         </Link>
                                     );
                                 })}
+
+                                {summary && (
+                                    <div className="mt-8 px-3 py-4 rounded-xl bg-red-50/50 border border-red-100/50 group/liability relative">
+                                        <button 
+                                            onClick={fetchSummary}
+                                            className="absolute top-2 right-2 p-1 text-red-300 hover:text-red-500 transition-colors opacity-100"
+                                            title="Refresh Liability"
+                                        >
+                                            <RefreshCcw className="w-2.5 h-2.5" />
+                                        </button>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Wallet className="w-3 h-3 text-red-500" />
+                                            <span className="text-[10px] font-bold text-red-600 uppercase tracking-widest">Financial Liability</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-xl font-black text-red-700">{summary.totalPendingAmount}</span>
+                                            <span className="text-[10px] font-bold text-red-500">{summary.currency}</span>
+                                        </div>
+                                        <div className="mt-2 text-[10px] text-red-400 font-medium flex items-center gap-1">
+                                            <AlertCircle className="w-2.5 h-2.5" />
+                                            {summary.pendingPenalties} UNRESOLVED BREACHES
+                                        </div>
+                                    </div>
+                                )}
                             </nav>
 
                             <div className="p-4 border-t border-zinc-200">
