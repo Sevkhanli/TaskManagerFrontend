@@ -88,17 +88,19 @@ export const Tasks: React.FC = () => {
     const fetchTasks = async (usersList: User[] = allUsers) => {
         setLoading(true);
         try {
-            if (viewMode === 'list') {
-                const data = await tasksApi.getTasks();
-                setTasks(data.map(res => mapResponseToTask(res, usersList)));
-            } else {
+            // Always fetch flat tasks to keep the main state updated
+            const data = await tasksApi.getTasks();
+            const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
+            setTasks(mappedTasks);
+
+            if (viewMode === 'folder') {
                 const groupedData = await tasksApi.getGroupedTasks();
                 const mappedGrouped = groupedData.map(group => ({
                     date: group.date,
                     tasks: group.tasks.map(res => mapResponseToTask(res, usersList))
                 }));
                 setGroupedTasks(mappedGrouped);
-                // Auto-open today's folder or first folder if none open
+                
                 if (openFolders.length === 0 && mappedGrouped.length > 0) {
                     setOpenFolders([mappedGrouped[0].date]);
                 }
@@ -174,23 +176,15 @@ export const Tasks: React.FC = () => {
         try {
             setSaveLoading(true);
             setError(null);
-            console.log('[Tasks] Save attempt. Admin:', isAdmin, 'payload:', taskData);
+            
+            console.group('[Tasks] Save Operation');
+            console.log('Mode:', selectedTask ? 'UPDATE' : 'CREATE');
+            console.log('Selected Task ID:', selectedTask?.id);
+            console.log('Payload from Modal:', taskData);
 
-            // Show a temporary warning if CORS is detected but let flow continue
             const formatDateForBackend = (dateStr: string) => {
                 const date = new Date(dateStr);
-                return date.toISOString().split('.')[0]; // Removes .SSSZ
-            };
-            const handleSaveError = (err: any) => {
-                console.error('[Tasks] Save error details:', err);
-                const isCorsError = !err.response && err.message === 'Network Error';
-                const serverMessage = err.response?.data?.message || err.message;
-                
-                if (isCorsError) {
-                    alert('Backend Security (CORS) Blocked the Request. Ensure your Spring Boot backend allows the PATCH method and headers for this origin.');
-                } else {
-                    alert('Failed to save task: ' + serverMessage);
-                }
+                return date.toISOString().split('.')[0];
             };
 
             if (selectedTask) {
@@ -199,11 +193,8 @@ export const Tasks: React.FC = () => {
                 const deadline = taskData.deadline ? formatDateForBackend(taskData.deadline) : formatDateForBackend(selectedTask.deadline);
                 
                 let response;
-                // Normalize assigneeId - can be 'current', 'me', or numeric string
                 const rawAssigneeId = taskData.assigneeId || selectedTask.assignee.id;
-                // Important: Try to get numeric ID from user.id which might be like "1"
                 const userNumericId = parseInt(user?.id || '0');
-                
                 const normalizedAssigneeId = (rawAssigneeId === 'current' || rawAssigneeId === 'me' || isNaN(parseInt(rawAssigneeId))) 
                     ? userNumericId 
                     : parseInt(rawAssigneeId);
@@ -217,24 +208,18 @@ export const Tasks: React.FC = () => {
                         assigneeId: finalAssigneeId,
                         status: taskData.status || selectedTask.status
                     };
-                    console.log('[Tasks] Payload for Admin Update:', payload);
+                    console.log('Admin Update Payload:', payload);
                     response = await tasksApi.updateAdminTask(taskId, payload);
 
-                    // Dedicated status update if changed
                     if (taskData.status && taskData.status !== selectedTask.status) {
                         try {
-                            console.log('[Tasks] Triggering specialized status patch...');
                             await tasksApi.updateTaskStatus(taskId, taskData.status, 'Admin operational change');
-                        } catch (statusErr: any) {
-                            console.warn('[Tasks] Status patch failed (likely CORS on PATCH method):', statusErr);
+                        } catch (statusErr) {
+                            console.warn('Status patch failed:', statusErr);
                         }
                     }
                 } else {
-                    // USER update logic
-                    const isAssignedByAdmin = selectedTask.creator.role === UserRole.SUPER_ADMIN || selectedTask.creator.fullName === 'Super Admin';
                     const isCreator = selectedTask.creator.id === String(user?.id);
-                    
-                    // IF user is NOT creator and is assignee of admin task, skip PUT to avoid 500 Permission Error
                     if (isCreator) {
                         const payload = {
                             title: taskData.title || selectedTask.title,
@@ -242,101 +227,138 @@ export const Tasks: React.FC = () => {
                             deadline: deadline,
                             status: taskData.status || selectedTask.status
                         };
-                        console.log('[Tasks] Payload for User Update (Creator):', payload);
+                        console.log('User Update Payload:', payload);
                         response = await tasksApi.updatePersonalTask(taskId, payload);
-                    } else {
-                        console.log('[Tasks] User is assignee. Skipping full PUT, only updating status...');
                     }
 
-                    // Dedicated status update if changed
                     if (taskData.status && taskData.status !== selectedTask.status) {
                         try {
-                            console.log('[Tasks] Triggering specialized status patch (Personnel)...');
                             const statusResponse = await tasksApi.updateTaskStatus(taskId, taskData.status, 'Personnel status update');
                             if (!response) response = statusResponse; 
-                        } catch (statusErr: any) {
-                            console.error('[Tasks] Status patch failed:', statusErr);
-                            const isCors = !statusErr.response && statusErr.message === 'Network Error';
-                            if (isCors) {
-                                alert('BACKEND XƏTASI: Sizin WebConfig-də "PATCH" metodu əlavə edilməyib! Zəhmət olmasa .allowedMethods hissəsinə "PATCH" əlavə edin.');
-                            } else {
-                                throw statusErr;
-                            }
+                        } catch (statusErr) {
+                            console.error('Status patch failed:', statusErr);
                         }
                     }
                 }
 
-                console.log('[Tasks] Update Process Complete.');
                 const updatedTask = response ? mapResponseToTask(response, allUsers) : { ...selectedTask, status: taskData.status as TaskStatus };
-                if (taskData.status) {
-                    updatedTask.status = taskData.status as TaskStatus;
-                }
                 setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t));
             } else {
                 // CREATE Logic
                 let response;
                 const deadline = taskData.deadline ? formatDateForBackend(taskData.deadline) : formatDateForBackend(new Date().toISOString());
-
-                const rawAssigneeId = taskData.assigneeId;
                 const userNumericId = parseInt(user?.id || '0');
+                const rawAssigneeId = taskData.assigneeId;
                 const normalizedAssigneeId = (!rawAssigneeId || rawAssigneeId === 'current' || rawAssigneeId === 'me' || isNaN(parseInt(rawAssigneeId))) 
                     ? userNumericId 
                     : parseInt(rawAssigneeId);
 
                 if (isAdmin) {
                     const finalAssigneeId = normalizedAssigneeId > 0 ? normalizedAssigneeId : userNumericId;
-                    console.log('[Tasks] Payload for Admin Create (Assignee:', finalAssigneeId, '):', {
+                    const payload = {
                         title: taskData.title || '',
                         description: taskData.description || '',
                         deadline: deadline,
                         assigneeId: finalAssigneeId
-                    });
-                    response = await tasksApi.createAdminTask({
-                        title: taskData.title || '',
-                        description: taskData.description || '',
-                        deadline: deadline,
-                        assigneeId: finalAssigneeId
-                    });
+                    };
+                    console.log('Admin Create Payload:', payload);
+                    response = await tasksApi.createAdminTask(payload);
+                    
+                    // If backend supports status on creation, we might need to patch it if it's not PENDING
+                    if (taskData.status && taskData.status !== TaskStatus.PENDING && taskData.status !== TaskStatus.TODO) {
+                        try {
+                            await tasksApi.updateTaskStatus(response.id, taskData.status, 'Initial status setup');
+                            response.status = taskData.status;
+                        } catch (e) {
+                            console.warn('Initial status patch failed');
+                        }
+                    }
                 } else {
-                    console.log('[Tasks] Payload for Personal Create:', {
+                    const payload = {
                         title: taskData.title || '',
                         description: taskData.description || '',
                         deadline: deadline
-                    });
-                    response = await tasksApi.createPersonalTask({
-                        title: taskData.title || '',
-                        description: taskData.description || '',
-                        deadline: deadline
-                    });
+                    };
+                    console.log('Personal Create Payload:', payload);
+                    response = await tasksApi.createPersonalTask(payload);
                 }
                 
-                console.log('[Tasks] Create Success. Server ID:', response.id);
-                // Optimistic update
+                console.log('Create Success. Response ID:', response.id);
                 const newTask = mapResponseToTask(response, allUsers);
-                setTasks(prev => [newTask, ...prev]);
+                
+                setTasks(prev => {
+                    const idExists = prev.some(t => String(t.id) === String(newTask.id));
+                    if (idExists) {
+                        console.error(`[CRITICAL] Backend returned ID ${newTask.id} which ALREADY EXISTS in the local registry! This will cause UI overlaps.`);
+                    }
+                    // If creating, we add it. If ID exists, we'll have two in the list (for debugging purposes) 
+                    // or we replace it if we really trust the backend. 
+                    // To show the user the conflict, let's keep the filter but add a visual debug warning in console.
+                    return [newTask, ...prev.filter(t => String(t.id) !== String(newTask.id))];
+                });
             }
             
+            console.groupEnd();
             setIsModalOpen(false);
             setSelectedTask(null);
             
-            // Sync after a delay to allow backend to persist
-            setTimeout(fetchUsersAndTasks, 1000);
+            // Sync after a delay
+            setTimeout(fetchUsersAndTasks, 800);
 
         } catch (err: any) {
-            console.error('[Tasks] Save error:', err);
-            const isCorsError = !err.response && err.message === 'Network Error';
+            console.error('Operation failed:', err);
+            console.groupEnd();
             const serverMessage = err.response?.data?.message || err.message;
-            
-            if (isCorsError) {
-                alert('Backend Security (CORS) Blocked the Request. Verify your Spring Boot @CrossOrigin configuration allows PATCH methods.');
-            } else {
-                alert('Failed to save task: ' + serverMessage);
-            }
+            alert('Failed: ' + serverMessage);
             fetchTasks();
         } finally {
             setSaveLoading(false);
         }
     };
+
+    // Synchronize grouped tasks for search/folders UI based on flat tasks list
+    useEffect(() => {
+        const query = searchQuery.toLowerCase().trim();
+        const filterTask = (t: Task) => {
+            const titleMatch = (t.title || '').toLowerCase().includes(query);
+            const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
+            const matchesSearch = titleMatch || assigneeMatch;
+            
+            if (isAdmin) return matchesSearch;
+            
+            const myNameRaw = (user?.fullName || '').toLowerCase().trim();
+            const myEmailRaw = (user?.email || '').toLowerCase().trim();
+            const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
+            const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
+            
+            const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
+            const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
+            
+            return matchesSearch && (isAssignedToMe || isCreatedByMe);
+        };
+
+        const grouped = tasks.reduce((acc: GroupedTask[], task) => {
+            if (!filterTask(task)) return acc;
+            
+            // Backend grouping fallback
+            const date = (task.deadline || '').split('T')[0];
+            const existingGroup = acc.find(g => g.date === date);
+            
+            if (existingGroup) {
+                existingGroup.tasks.push(task);
+            } else {
+                acc.push({ date, tasks: [task] });
+            }
+            return acc;
+        }, []);
+
+        grouped.sort((a, b) => b.date.localeCompare(a.date));
+        setGroupedTasks(grouped);
+        
+        if (openFolders.length === 0 && grouped.length > 0) {
+            setOpenFolders([grouped[0].date]);
+        }
+    }, [tasks, searchQuery, user?.id, isAdmin, user?.fullName, user?.email]);
 
     const filteredTasks = tasks.filter(t => {
         const query = searchQuery.toLowerCase().trim();
@@ -346,41 +368,18 @@ export const Tasks: React.FC = () => {
         
         if (isAdmin) return matchesSearch;
         
-        // User visibility: Assigned to them OR Created by them (using names for safety)
-        const myNameRaw = (user.fullName || '').toLowerCase().trim();
-        const myEmailRaw = (user.email || '').toLowerCase().trim();
+        const myNameRaw = (user?.fullName || '').toLowerCase().trim();
+        const myEmailRaw = (user?.email || '').toLowerCase().trim();
         const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
         const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
         
         const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
         const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
-
-        // If I am neither, but my current user object has a generic name and I might be missing data,
-        // we should be careful. But for now, name/email match is best effort.
+ 
         return matchesSearch && (isAssignedToMe || isCreatedByMe);
     });
 
-    const filteredGroupedTasks = groupedTasks.map(group => ({
-        ...group,
-        tasks: group.tasks.filter(t => {
-            const query = searchQuery.toLowerCase().trim();
-            const titleMatch = (t.title || '').toLowerCase().includes(query);
-            const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
-            const matchesSearch = titleMatch || assigneeMatch;
-            
-            if (isAdmin) return matchesSearch;
-            
-            const myNameRaw = (user.fullName || '').toLowerCase().trim();
-            const myEmailRaw = (user.email || '').toLowerCase().trim();
-            const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
-            const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
-            
-            const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
-            const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
-            
-            return matchesSearch && (isAssignedToMe || isCreatedByMe);
-        })
-    })).filter(group => group.tasks.length > 0);
+    const filteredGroupedTasks = groupedTasks;
 
     return (
         <div className="space-y-6">
