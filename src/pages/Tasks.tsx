@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, History, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Task, TaskStatus, User, UserRole } from '../types';
 import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,13 @@ export const Tasks: React.FC = () => {
     const [viewMode, setViewMode] = useState<'list' | 'folder'>('list');
     const [groupedTasks, setGroupedTasks] = useState<GroupedTask[]>([]);
     const [openFolders, setOpenFolders] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
+    // Reset page on search or view change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, viewMode]);
 
     // Use fetched users for Admin, or just current user for regular staff
     const usersForModal = isAdmin ? allUsers : [
@@ -429,6 +436,78 @@ export const Tasks: React.FC = () => {
 
     const filteredGroupedTasks = groupedTasks;
 
+    // Pagination calculations
+    const paginatedTasks = filteredTasks.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const paginatedGroupedTasks = filteredGroupedTasks.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    const totalPages = viewMode === 'list' 
+        ? Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)
+        : Math.ceil(filteredGroupedTasks.length / ITEMS_PER_PAGE);
+
+    const PaginationUI = () => {
+        if (totalPages <= 1) return null;
+        
+        return (
+            <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-zinc-100">
+                <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, viewMode === 'list' ? filteredTasks.length : filteredGroupedTasks.length)} of {viewMode === 'list' ? filteredTasks.length : filteredGroupedTasks.length} {viewMode === 'list' ? 'Objectives' : 'Folders'}
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-zinc-200 rounded-lg disabled:opacity-30 hover:bg-zinc-50 transition-all"
+                    >
+                        Prev
+                    </button>
+                    <div className="flex items-center gap-1">
+                        {[...Array(totalPages)].map((_, i) => {
+                            const pageNum = i + 1;
+                            // Show first, last, and pages around current
+                            if (
+                                pageNum === 1 || 
+                                pageNum === totalPages || 
+                                (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                            ) {
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-[10px] font-bold font-mono transition-all ${
+                                            currentPage === pageNum 
+                                                ? 'bg-zinc-900 text-white shadow-lg shadow-zinc-900/10' 
+                                                : 'text-zinc-500 hover:bg-zinc-50 border border-transparent hover:border-zinc-100'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            }
+                            if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                                return <span key={pageNum} className="text-zinc-300 text-xs px-1">...</span>;
+                            }
+                            return null;
+                        })}
+                    </div>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-zinc-200 rounded-lg disabled:opacity-30 hover:bg-zinc-50 transition-all"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -516,8 +595,8 @@ export const Tasks: React.FC = () => {
                                             </div>
                                         </td>
                                     </tr>
-                                ) : filteredTasks.length > 0 ? (
-                                    filteredTasks.map((task) => {
+                                ) : paginatedTasks.length > 0 ? (
+                                    paginatedTasks.map((task) => {
                                         const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
                                         return (
                                             <tr key={task.id} className="hover:bg-zinc-50/50 transition-colors group">
@@ -558,12 +637,6 @@ export const Tasks: React.FC = () => {
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button 
-                                                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                                                            title="Status History"
-                                                        >
-                                                            <History className="w-4 h-4" />
-                                                        </button>
-                                                        <button 
                                                             onClick={() => {
                                                                 setSelectedTask(task);
                                                                 setIsModalOpen(true);
@@ -587,6 +660,7 @@ export const Tasks: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                    <PaginationUI />
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -595,89 +669,92 @@ export const Tasks: React.FC = () => {
                             <RefreshCcw className="w-6 h-6 animate-spin mx-auto text-zinc-400 mb-4" />
                             <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">Compiling folder structure...</p>
                         </div>
-                    ) : filteredGroupedTasks.length > 0 ? (
-                        filteredGroupedTasks.map((group) => (
-                            <div key={group.date} className="bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
-                                <button 
-                                    onClick={() => toggleFolder(group.date)}
-                                    className="w-full flex items-center justify-between p-5 hover:bg-zinc-50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center text-white shadow-lg">
-                                            <Folder className="w-6 h-6 fill-current" />
+                    ) : paginatedGroupedTasks.length > 0 ? (
+                        <div className="space-y-4">
+                            {paginatedGroupedTasks.map((group) => (
+                                <div key={group.date} className="bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                    <button 
+                                        onClick={() => toggleFolder(group.date)}
+                                        className="w-full flex items-center justify-between p-5 hover:bg-zinc-50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center text-white shadow-lg">
+                                                <Folder className="w-6 h-6 fill-current" />
+                                            </div>
+                                            <div className="text-left">
+                                                <h3 className="text-lg font-bold text-zinc-900">
+                                                    {format(parseISO(group.date), 'EEEE, MMMM dd')}
+                                                </h3>
+                                                <p className="text-xs text-zinc-400 flex items-center gap-2">
+                                                    <Clock className="w-3 h-3" />
+                                                    {group.tasks.length} {group.tasks.length === 1 ? 'Operation' : 'Operations'} Registered
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-left">
-                                            <h3 className="text-lg font-bold text-zinc-900">
-                                                {format(parseISO(group.date), 'EEEE, MMMM dd')}
-                                            </h3>
-                                            <p className="text-xs text-zinc-400 flex items-center gap-2">
-                                                <Clock className="w-3 h-3" />
-                                                {group.tasks.length} {group.tasks.length === 1 ? 'Operation' : 'Operations'} Registered
-                                            </p>
+                                        <div className={`transition-transform duration-300 ${openFolders.includes(group.date) ? 'rotate-180' : ''}`}>
+                                            <ChevronDown className="w-5 h-5 text-zinc-400" />
                                         </div>
-                                    </div>
-                                    <div className={`transition-transform duration-300 ${openFolders.includes(group.date) ? 'rotate-180' : ''}`}>
-                                        <ChevronDown className="w-5 h-5 text-zinc-400" />
-                                    </div>
-                                </button>
-                                
-                                {openFolders.includes(group.date) && (
-                                    <div className="p-4 bg-zinc-50/50 border-t border-zinc-50 space-y-3">
-                                        {group.tasks.map(task => {
-                                            const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
-                                            return (
-                                                <div 
-                                                    key={task.id}
-                                                    onClick={() => {
-                                                        setSelectedTask(task);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    className="bg-white p-4 rounded-xl border border-zinc-100 shadow-xs hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
-                                                >
-                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className={`mt-1 p-2 rounded-lg ${
-                                                                task.status === TaskStatus.COMPLETED ? 'bg-zinc-100 text-zinc-900' :
-                                                                isOverdue ? 'bg-red-50 text-red-600' :
-                                                                'bg-amber-50 text-amber-600'
-                                                            }`}>
-                                                                <CalendarIcon className="w-4 h-4" />
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="font-bold text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight">{task.title}</h4>
-                                                                <p className="text-sm text-zinc-500 line-clamp-1">{task.description}</p>
-                                                                <div className="flex items-center gap-3 mt-2">
-                                                                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase font-mono">
-                                                                        <div className="w-4 h-4 rounded bg-zinc-100 flex items-center justify-center text-[8px] font-bold">
-                                                                            {task.assignee?.fullName?.charAt(0)}
+                                    </button>
+                                    
+                                    {openFolders.includes(group.date) && (
+                                        <div className="p-4 bg-zinc-50/50 border-t border-zinc-50 space-y-3">
+                                            {group.tasks.map(task => {
+                                                const isOverdue = new Date(task.deadline) < new Date() && task.status !== TaskStatus.COMPLETED;
+                                                return (
+                                                    <div 
+                                                        key={task.id}
+                                                        onClick={() => {
+                                                            setSelectedTask(task);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        className="bg-white p-4 rounded-xl border border-zinc-100 shadow-xs hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer group"
+                                                    >
+                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className={`mt-1 p-2 rounded-lg ${
+                                                                    task.status === TaskStatus.COMPLETED ? 'bg-zinc-100 text-zinc-900' :
+                                                                    isOverdue ? 'bg-red-50 text-red-600' :
+                                                                    'bg-amber-50 text-amber-600'
+                                                                }`}>
+                                                                    <CalendarIcon className="w-4 h-4" />
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="font-bold text-zinc-900 group-hover:text-amber-600 transition-colors uppercase tracking-tight">{task.title}</h4>
+                                                                    <p className="text-sm text-zinc-500 line-clamp-1">{task.description}</p>
+                                                                    <div className="flex items-center gap-3 mt-2">
+                                                                        <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase font-mono">
+                                                                            <div className="w-4 h-4 rounded bg-zinc-100 flex items-center justify-center text-[8px] font-bold">
+                                                                                {task.assignee?.fullName?.charAt(0)}
+                                                                            </div>
+                                                                            {task.assignee?.fullName}
                                                                         </div>
-                                                                        {task.assignee?.fullName}
+                                                                        <div className="w-1 h-1 rounded-full bg-zinc-200" />
+                                                                        <span className="text-[10px] text-zinc-400 uppercase font-mono">#{task.id}</span>
                                                                     </div>
-                                                                    <div className="w-1 h-1 rounded-full bg-zinc-200" />
-                                                                    <span className="text-[10px] text-zinc-400 uppercase font-mono">#{task.id}</span>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
-                                                                task.status === TaskStatus.COMPLETED ? 'bg-zinc-900 text-white border-zinc-900' :
-                                                                isOverdue ? 'bg-red-50 text-red-700 border-red-200' :
-                                                                task.status === TaskStatus.IN_PROGRESS ? 'bg-zinc-50 text-zinc-900 border-zinc-200 shadow-sm' :
-                                                                task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                                'bg-white text-zinc-400 border-zinc-100'
-                                                            }`}>
-                                                                {isOverdue ? 'OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
-                                                            </span>
-                                                            <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-900 transition-colors" />
+                                                            <div className="flex items-center gap-3">
+                                                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all ${
+                                                                    task.status === TaskStatus.COMPLETED ? 'bg-zinc-900 text-white border-zinc-900' :
+                                                                    isOverdue ? 'bg-red-50 text-red-700 border-red-200' :
+                                                                    task.status === TaskStatus.IN_PROGRESS ? 'bg-zinc-50 text-zinc-900 border-zinc-200 shadow-sm' :
+                                                                    task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                                    'bg-white text-zinc-400 border-zinc-100'
+                                                                }`}>
+                                                                    {isOverdue ? 'OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
+                                                                </span>
+                                                                <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-900 transition-colors" />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        ))
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            <PaginationUI />
+                        </div>
                     ) : (
                         <div className="px-6 py-24 text-center bg-white border border-dashed border-zinc-200 rounded-3xl">
                             <Folder className="w-12 h-12 mx-auto text-zinc-200 mb-4" />

@@ -98,10 +98,6 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
                                     <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-zinc-400" /> Cəmi Cərimə Sayı</span>
                                     <span className="font-bold text-zinc-900">{summary.totalPenaltyCount ?? summary.totalPenalties ?? 0}</span>
                                 </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-zinc-500 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500" /> Aktiv Pozuntular</span>
-                                    <span className="font-bold text-red-600">{summary.activePenalties ?? summary.pendingPenalties ?? 0}</span>
-                                </div>
                             </div>
                         </div>
                     )}

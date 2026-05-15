@@ -224,10 +224,17 @@ export const Penalties: React.FC = () => {
     );
 
     const stats = React.useMemo(() => {
+        const unpaidAmount = filteredPenalties
+            .filter(p => p && (p.status === PenaltyStatus.PENDING || String(p.status).toUpperCase() === 'PENDING'))
+            .reduce((acc, p) => acc + (p.amount || 0), 0);
+        
+        const paidCount = filteredPenalties
+            .filter(p => p && (p.status === PenaltyStatus.PAID || String(p.status).toUpperCase() === 'PAID'))
+            .length;
+
         return [
-            { label: 'Cəmi Ödənilməmiş', value: `${filteredPenalties.filter(p => p && p.status === PenaltyStatus.PENDING).reduce((acc, p) => acc + (p.amount || 0), 0).toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
-            { label: 'Aktiv Mübahisələr', value: filteredPenalties.filter(p => p && p.evidenceRequired && !p.evidenceProvided).length.toString(), icon: AlertCircle, color: 'text-amber-600' },
-            { label: 'Ödənilmiş', value: filteredPenalties.filter(p => p && p.status === PenaltyStatus.PAID).length.toString(), icon: CheckCircle2, color: 'text-green-600' }
+            { label: 'Cəmi Ödənilməmiş', value: `${unpaidAmount.toFixed(2)} AZN`, icon: DollarSign, color: 'text-zinc-900' },
+            { label: 'Ödənilmiş', value: paidCount.toString(), icon: CheckCircle2, color: 'text-green-600' }
         ];
     }, [filteredPenalties]);
 
@@ -266,7 +273,7 @@ export const Penalties: React.FC = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {stats.map((stat) => (
                     <div key={stat.label} className="card p-6 flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center">
@@ -372,11 +379,7 @@ export const Penalties: React.FC = () => {
                                                 </button>
                                             </div>
                                         ) : (
-                                            penalty.evidenceRequired && !penalty.evidenceProvided && (
-                                                <button className="w-full md:w-auto px-4 py-2 bg-zinc-900 text-white rounded-lg text-xs font-bold hover:bg-zinc-800 transition-colors flex items-center gap-2">
-                                                    <ShieldAlert className="w-4 h-4" /> PROVIDE EVIDENCE
-                                                </button>
-                                            )
+                                            null
                                         )}
                                     </div>
                                 </div>
