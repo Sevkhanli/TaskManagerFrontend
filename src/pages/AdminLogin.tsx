@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 export const AdminLogin: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [credentials, setCredentials] = useState({ email: 'admin@taskflow.pro', password: '' });

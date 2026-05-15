@@ -31,15 +31,30 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     
     // Permission Logic:
     // 1. Admin can edit everything.
-    // 2. User can edit everything of their OWN self-created tasks.
+    // 2. User can edit everything of their OWN self-created tasks (where they are the creator).
     // 3. User can ONLY edit status if the task was assigned to them by an Admin.
-    const isTaskAssignedByAdmin = task && task.creator.role === UserRole.SUPER_ADMIN && task.assignee.id === currentUser.id;
-    const isSelfCreatedTask = task && task.creator.id === currentUser.id && task.assignee.id === currentUser.id;
+    // Use creator name "Super Admin" as a reliable fallback for admin check
+    const isTaskAssignedByAdmin = task && (task.creator.role === UserRole.SUPER_ADMIN || task.creator.fullName === 'Super Admin');
+    const isOwner = task && (task.creator.id === currentUser.id || (task.creator.fullName === currentUser.fullName && currentUser.fullName !== 'Unknown'));
 
-    // Users can edit everything except during creation (where they only create for self) 
-    // and except for admin-assigned tasks where they only update status.
-    const canEditMetadata = isAdmin || !isEditing || (isEditing && isSelfCreatedTask && !isTaskAssignedByAdmin);
+    // Users can edit everything except for tasks created by Admin.
+    const canEditMetadata = isAdmin || !isEditing || (isEditing && isOwner && !isTaskAssignedByAdmin);
     const canEditStatus = true; // Everyone can edit status of their assigned tasks
+
+    useEffect(() => {
+        if (isOpen) {
+            console.log('[TaskModal] Permissions Check:', {
+                isAdmin,
+                isEditing,
+                isTaskAssignedByAdmin,
+                isOwner,
+                canEditMetadata,
+                canEditStatus,
+                taskCreator: task?.creator.fullName,
+                currentUser: currentUser.fullName
+            });
+        }
+    }, [isOpen, isAdmin, isEditing, isTaskAssignedByAdmin, isOwner, canEditMetadata, canEditStatus]);
 
     useEffect(() => {
         if (task) {
@@ -80,9 +95,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             <h3 className="text-xl font-bold text-zinc-900">
                                 {isEditing ? 'Modify Task Details' : 'Launch New Task'}
                             </h3>
-                            {isTaskAssignedByAdmin && (
+                            {isTaskAssignedByAdmin && !isAdmin && (
                                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mt-1">
-                                    Admin Assigned: Limited Editing
+                                    Operational Order: Only Status Feedback Allowed
                                 </p>
                             )}
                         </div>
@@ -103,7 +118,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 onChange={(e) => setTitle(e.target.value)}
                                 disabled={!canEditMetadata}
                                 placeholder="Task title..."
-                                className="input-field disabled:bg-zinc-50 disabled:text-zinc-500"
+                                className="input-field disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -118,7 +133,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 disabled={!canEditMetadata}
                                 placeholder="Describe the task..."
                                 rows={3}
-                                className="input-field resize-none py-3 disabled:bg-zinc-50 disabled:text-zinc-500"
+                                className="input-field resize-none py-3 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -133,7 +148,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                     value={deadline}
                                     onChange={(e) => setDeadline(e.target.value)}
                                     disabled={!canEditMetadata}
-                                    className="input-field disabled:bg-zinc-50 disabled:text-zinc-500"
+                                    className="input-field disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed"
                                 />
                             </div>
 
@@ -148,9 +163,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                     disabled={!canEditStatus}
                                     className="input-field bg-white"
                                 >
-                                    {Object.values(TaskStatus).map((s) => (
-                                        <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                                    ))}
+                                    {Object.values(TaskStatus)
+                                        .filter(s => s !== TaskStatus.OVERDUE)
+                                        .map((s) => (
+                                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                                        ))
+                                    }
                                 </select>
                             </div>
                         </div>

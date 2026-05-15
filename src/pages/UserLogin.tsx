@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { CheckSquare, ArrowLeft, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 export const UserLogin: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [credentials, setCredentials] = useState({ email: 'staff@example.com', password: '' });

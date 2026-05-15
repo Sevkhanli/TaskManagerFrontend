@@ -91,6 +91,8 @@ export interface AuthResponse {
     refreshToken: string;
     fullName: string;
     email: string;
+    name?: string;
+    role?: string;
 }
 
 export const authApi = {
@@ -105,8 +107,46 @@ export const authApi = {
         const response = await api.get<AuthResponse>('/api/auth/me');
         return response.data;
     },
+    getUsers: async (): Promise<any[]> => {
+        // Fetch real users from backend for assignment
+        const response = await api.get<any[]>('/api/users');
+        return response.data;
+    },
     refreshToken: async (): Promise<AuthResponse> => {
         const response = await api.post<AuthResponse>('/api/auth/refresh-token');
+        return response.data;
+    }
+};
+
+export interface TaskResponse {
+    id: number;
+    title: string;
+    description: string;
+    status: string;
+    deadline: string;
+    creatorName: string;
+    assigneeName: string;
+}
+
+export const tasksApi = {
+    createPersonalTask: async (taskData: { title: string, description: string, deadline: string }): Promise<TaskResponse> => {
+        const response = await api.post<TaskResponse>('/api/tasks', taskData);
+        return response.data;
+    },
+    createAdminTask: async (taskData: { title: string, description: string, deadline: string, assigneeId: number }): Promise<TaskResponse> => {
+        const response = await api.post<TaskResponse>('/api/tasks/admin', taskData);
+        return response.data;
+    },
+    updatePersonalTask: async (id: number, taskData: { title: string, description: string, deadline: string, status: string }): Promise<TaskResponse> => {
+        const response = await api.put<TaskResponse>(`/api/tasks/${id}`, taskData);
+        return response.data;
+    },
+    updateAdminTask: async (id: number, taskData: { title: string, description: string, deadline: string, assigneeId: number, status: string }): Promise<TaskResponse> => {
+        const response = await api.put<TaskResponse>(`/api/tasks/admin/${id}`, taskData);
+        return response.data;
+    },
+    getTasks: async (): Promise<TaskResponse[]> => {
+        const response = await api.get<TaskResponse[]>('/api/tasks');
         return response.data;
     }
 };

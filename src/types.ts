@@ -2,7 +2,8 @@ export enum TaskStatus {
     TODO = 'TODO',
     IN_PROGRESS = 'IN_PROGRESS',
     COMPLETED = 'COMPLETED',
-    OVERDUE = 'OVERDUE'
+    OVERDUE = 'OVERDUE',
+    PENDING = 'PENDING'
 }
 
 export enum PenaltyStatus {

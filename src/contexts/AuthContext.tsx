@@ -52,14 +52,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const email = decoded?.sub || response.email || 'User';
                     const fullName = response.fullName || response.name || 'User';
                     
-                    // Logic: Check roles array from token FIRST
+                    // Priority 1: JWT Roles array
+                    // Priority 2: backend string role field
+                    // Priority 3: email pattern matches
                     let role = UserRole.USER;
-                    if (decoded?.roles?.includes('ROLE_ADMIN') || decoded?.role === 'admin' || email.includes('admin')) {
+                    const hasAdminRole = decoded?.roles?.some((r: string) => r === 'ROLE_ADMIN' || r === 'ADMIN');
+                    if (hasAdminRole || decoded?.role === 'admin' || response.role === 'admin' || email.toLowerCase().includes('admin')) {
                         role = UserRole.SUPER_ADMIN;
                     }
 
                     const userData: User = {
-                        id: decoded?.userId || email || 'unknown',
+                        id: String(decoded?.userId || email || 'unknown'),
                         email: email,
                         fullName: fullName,
                         role: role,
@@ -111,14 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const email = decoded?.sub || response.email || credentials.email;
                 const fullName = response.fullName || response.name || 'User';
                 
-                // Logic: Extract role from ROLE_ADMIN array in token
+                // Extract role with more precision
                 let role = UserRole.USER;
-                if (decoded?.roles?.includes('ROLE_ADMIN') || decoded?.role === 'admin') {
+                const hasAdminRole = decoded?.roles?.some((r: string) => r === 'ROLE_ADMIN' || r === 'ADMIN');
+                if (hasAdminRole || decoded?.role === 'admin' || response.role === 'admin' || email.toLowerCase().includes('admin')) {
                     role = UserRole.SUPER_ADMIN;
                 }
                 
                 const userData: User = {
-                    id: decoded?.userId || email || Math.random().toString(36).substr(2, 9),
+                    id: String(decoded?.userId || email || Math.random().toString(36).substr(2, 9)),
                     email: email,
                     fullName: fullName,
                     role: role,
