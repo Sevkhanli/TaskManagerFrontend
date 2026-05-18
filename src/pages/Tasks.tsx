@@ -141,14 +141,18 @@ export const Tasks: React.FC = () => {
                 const users = await authApi.getUsers();
                 
                 if (Array.isArray(users)) {
-                    currentUsers = users.map((u: any) => ({
-                        id: String(u.id),
-                        fullName: u.fullName || u.name || 'User',
-                        email: u.email || '', 
-                        role: (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin')) 
-                            ? UserRole.SUPER_ADMIN : UserRole.USER,
-                        createdAt: ''
-                    }));
+                    currentUsers = users.map((u: any) => {
+                        const originalRole = u.role || 'USER';
+                        const isAdminRole = (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin'));
+                        
+                        return {
+                            id: String(u.id),
+                            fullName: u.fullName || u.name || 'User',
+                            email: u.email || '', 
+                            role: isAdminRole ? UserRole.SUPER_ADMIN : originalRole,
+                            createdAt: ''
+                        };
+                    });
                     setAllUsers(currentUsers);
                 }
             } catch (err) {

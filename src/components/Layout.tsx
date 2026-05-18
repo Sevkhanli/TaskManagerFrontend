@@ -65,7 +65,6 @@ export const Layout: React.FC = () => {
     const navigation = React.useMemo(() => {
         console.log('[Layout] Recalculating navigation for email:', userEmail, 'role:', userRole);
         const base = [
-            { name: 'Panel', href: '/', icon: LayoutDashboard },
             { name: 'Tapşırıqlar', href: '/tasks', icon: CheckSquare },
             { name: 'Cərimələr', href: '/penalties', icon: AlertCircle },
         ];
@@ -178,7 +177,7 @@ export const Layout: React.FC = () => {
                             <Menu className="w-5 h-5" />
                         </button>
                         <h1 className="text-lg font-semibold text-zinc-900">
-                            {navigation.find(n => n.href === location.pathname)?.name || 'Panel'}
+                            {navigation.find(n => n.href === location.pathname)?.name || 'TaskFlow'}
                         </h1>
                     </div>
 

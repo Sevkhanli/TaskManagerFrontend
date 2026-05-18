@@ -137,14 +137,18 @@ export const Users: React.FC = () => {
             console.log('[Users] Received data:', data);
             
             if (Array.isArray(data)) {
-                const mappedUsers: User[] = data.map((u: any) => ({
-                    id: String(u.id),
-                    fullName: u.fullName || u.name || 'Unknown User',
-                    email: u.email || 'No email provided',
-                    role: (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin')) 
-                        ? UserRole.SUPER_ADMIN : UserRole.USER,
-                    createdAt: u.createdAt || new Date().toISOString()
-                }));
+                const mappedUsers: User[] = data.map((u: any) => {
+                    const originalRole = u.role || 'USER';
+                    const isAdminRole = (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin'));
+                    
+                    return {
+                        id: String(u.id),
+                        fullName: u.fullName || u.name || 'Unknown User',
+                        email: u.email || 'No email provided',
+                        role: isAdminRole ? UserRole.SUPER_ADMIN : originalRole,
+                        createdAt: u.createdAt || new Date().toISOString()
+                    };
+                });
                 setUsers(mappedUsers);
                 setError(null);
             } else {
