@@ -5,6 +5,27 @@ import { motion, AnimatePresence } from 'motion/react';
 import { authApi, penaltyApi } from '../api';
 import { useNotification } from '../contexts/NotificationContext';
 
+const getRoleConfig = (rolesArray?: any[]) => {
+    if (!rolesArray || rolesArray.length === 0) {
+        return { label: 'USER', className: 'bg-gray-100 text-gray-700 border border-gray-200' };
+    }
+    const rawRole = typeof rolesArray[0] === 'string' ? rolesArray[0] : (rolesArray[0].name || rolesArray[0].authority || 'USER');
+    const cleanRole = rawRole.replace("ROLE_", "").toUpperCase().trim();
+
+    switch (cleanRole) {
+        case 'SUPER_ADMIN':
+            return { label: 'SUPER_ADMIN', className: 'bg-red-100 text-red-700 border border-red-200' };
+        case 'ADMIN':
+            return { label: 'ADMIN', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
+        case 'SATIS':
+            return { label: 'SATIS', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
+        case 'KOORDINATOR':
+            return { label: 'KOORDINATOR', className: 'bg-amber-100 text-amber-700 border border-amber-200' };
+        default:
+            return { label: cleanRole, className: 'bg-gray-100 text-gray-700 border border-gray-200' };
+    }
+};
+
 const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userId, onClose }) => {
     const [summary, setSummary] = useState<UserPenaltyStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -166,7 +187,8 @@ const UpdateRoleModal: React.FC<{ user: User, dbRoles: string[], onClose: () => 
                                 dbRoles.map(role => (
                                     <option key={role} value={role}>
                                         {role === 'SUPER_ADMIN' || role === 'ROLE_ADMIN' || role === 'ADMIN' ? 'Super Admin (Root)' : 
-                                         role === 'USER' || role === 'ROLE_USER' ? 'Standart İstifadəçi' : role}
+                                         role === 'USER' || role === 'ROLE_USER' ? 'Standart İstifadəçi' : 
+                                         role.replace('ROLE_', '').toUpperCase()}
                                     </option>
                                 ))
                             ) : (
@@ -302,6 +324,7 @@ export const Users: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState('ALL');
     const [dbRoles, setDbRoles] = useState<string[]>([]);
     const [form, setForm] = useState({ 
         fullName: '', 
@@ -341,56 +364,37 @@ export const Users: React.FC = () => {
             
             if (Array.isArray(data)) {
                 const mappedUsers: User[] = data.map((u: any) => {
-                    const MASTER_ROLES = ['ROLE_SATIS', 'ROLE_ADMIN', 'SUPER_ADMIN', 'ADMIN', 'ROLE_USER', 'USER'];
-                    const allKnownRoles = [...currentDbRoles, ...MASTER_ROLES];
-                    
-                    // Collect all potential roles found in the user object
-                    const findAllRoles = (obj: any, depth = 0): string[] => {
-                        if (!obj || depth > 4) return [];
-                        let roles: string[] = [];
-                        
-                        if (typeof obj === 'string') {
-                            const val = obj.toUpperCase().trim();
-                            // Check for exact match or ROLE_ prefix match
-                            if (allKnownRoles.includes(val) || 
-                                allKnownRoles.includes(`ROLE_${val}`) || 
-                                val.startsWith('ROLE_')) {
-                                roles.push(val);
-                            }
-                        } else if (Array.isArray(obj)) {
-                            obj.forEach(item => {
-                                roles = [...roles, ...findAllRoles(item, depth + 1)];
-                            });
-                        } else if (typeof obj === 'object') {
-                            Object.values(obj).forEach(val => {
-                                roles = [...roles, ...findAllRoles(val, depth + 1)];
-                            });
-                        }
-                        return roles;
-                    };
+                    // Extract role strictly from roles array or role field
+                    let rawRole = 'USER';
+                    let rolesArray = [];
 
-                    const candidates = Array.from(new Set(findAllRoles(u)));
+                    if (u.roles && Array.isArray(u.roles) && u.roles.length > 0) {
+                        rolesArray = u.roles;
+                        const firstRole = u.roles[0];
+                        rawRole = typeof firstRole === 'string' ? firstRole : (firstRole.name || firstRole.authority || 'USER');
+                    } else if (u.role) {
+                        rawRole = typeof u.role === 'string' ? u.role : (u.role.name || u.role.authority || 'USER');
+                    }
                     
-                    // Priority selection: Admin > Satis > Others > User
-                    const rawRole = candidates.find(r => r.includes('ADMIN')) || 
-                                   candidates.find(r => r.includes('SATIS')) ||
-                                   candidates.find(r => r.includes('MANAGER')) ||
-                                   candidates.find(r => r !== 'USER' && r !== 'ROLE_USER') || 
-                                   candidates[0] || 'USER';
+                    rawRole = String(rawRole).toUpperCase().trim();
 
-                    const isKnownAdmin = rawRole.includes('ADMIN');
-                    const isAdminRole = isKnownAdmin || (String(u.fullName || u.name || u.username).toLowerCase().includes('super admin'));
+                    // Special check for super admin presence
+                    const isSuper = rawRole.includes('SUPER') || 
+                                   String(u.fullName || u.name || u.username || '').toLowerCase().includes('super admin');
                     
+                    const roleLabel = isSuper ? 'SUPER_ADMIN' : rawRole;
+
                     // Email extraction
                     let email = u.email || u.username || u.userName || u.user_name || u.login || u.mail || '';
                     if (!email && u.id && String(u.id).includes('@')) email = String(u.id);
                     if (!email) email = 'No email provided';
-                    
+
                     return {
                         id: String(u.id || Math.random().toString(36).substr(2, 9)),
                         fullName: u.fullName || u.name || u.fullNameAz || u.full_name || u.username || u.userName || 'Unknown User',
                         email: email,
-                        role: isAdminRole ? UserRole.SUPER_ADMIN : rawRole,
+                        role: roleLabel,
+                        roles: rolesArray,
                         createdAt: u.createdAt || new Date().toISOString()
                     };
                 });
@@ -454,13 +458,22 @@ export const Users: React.FC = () => {
 
     const filteredUsers = React.useMemo(() => {
         const query = searchQuery.toLowerCase().trim();
-        if (!query) return users;
-        return users.filter(u => 
-            u.fullName.toLowerCase().includes(query) || 
-            u.email.toLowerCase().includes(query) ||
-            u.role.toLowerCase().includes(query)
-        );
-    }, [users, searchQuery]);
+        let result = users;
+
+        if (selectedRoleFilter !== 'ALL') {
+            result = result.filter(u => u.role === selectedRoleFilter);
+        }
+
+        if (query) {
+            result = result.filter(u => 
+                u.fullName.toLowerCase().includes(query) || 
+                u.email.toLowerCase().includes(query) ||
+                u.role.toLowerCase().includes(query)
+            );
+        }
+
+        return result;
+    }, [users, searchQuery, selectedRoleFilter]);
 
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
     const paginatedUsers = React.useMemo(() => {
@@ -490,6 +503,18 @@ export const Users: React.FC = () => {
                             className="bg-white border border-zinc-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-600 w-64"
                         />
                     </div>
+                    <select 
+                        value={selectedRoleFilter}
+                        onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                        className="bg-white border border-zinc-200 rounded-xl px-4 py-2 text-[11px] font-bold tracking-widest uppercase text-zinc-600 focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all"
+                    >
+                        <option value="ALL">BÜTÜN ROLLAR</option>
+                        {dbRoles.map(role => (
+                            <option key={role} value={role}>
+                                {role.replace('ROLE_', '').toUpperCase()}
+                            </option>
+                        ))}
+                    </select>
                     <button 
                         onClick={() => setIsCreatingRole(true)}
                         className="px-4 py-2 border border-zinc-200 rounded-xl text-zinc-600 font-bold text-[11px] tracking-widest hover:bg-zinc-50 transition-all flex items-center gap-2"
@@ -665,17 +690,15 @@ export const Users: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
-                                            {u.role === UserRole.SUPER_ADMIN ? (
+                                            {u.role.includes('ADMIN') ? (
                                                 <Shield className="w-3 h-3 text-red-600" />
                                             ) : (
                                                 <UserIcon className="w-3 h-3 text-zinc-400" />
                                             )}
                                             <span className={`text-[10px] font-black uppercase tracking-widest ${
-                                                u.role === UserRole.SUPER_ADMIN ? 'text-red-600' : 
-                                                u.role === 'USER' ? 'text-zinc-400' : 'text-zinc-600'
+                                                u.role.includes('ADMIN') ? 'text-red-600' : 'text-zinc-600'
                                             }`}>
-                                                {u.role === UserRole.SUPER_ADMIN ? 'Kritik Giriş / ROOT' : 
-                                                 u.role === 'USER' ? 'Standart İcazə' : u.role}
+                                                {u.roles && u.roles.length > 0 ? (typeof u.roles[0] === 'string' ? u.roles[0].replace('ROLE_', '') : u.roles[0].name.replace('ROLE_', '')) : u.role.replace('ROLE_', '')}
                                             </span>
                                         </div>
                                     </td>
@@ -687,13 +710,14 @@ export const Users: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 text-zinc-500 font-mono text-[11px]">{u.createdAt?.split('T')[0]}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${
-                                            u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600 border border-red-100' :
-                                            u.role === 'USER' ? 'bg-zinc-50 text-zinc-400 border border-zinc-100' :
-                                            'bg-zinc-900 text-white'
-                                        }`}>
-                                            {u.role}
-                                        </span>
+                                        {(() => {
+                                            const roleConfig = getRoleConfig(u.roles);
+                                            return (
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${roleConfig.className}`}>
+                                                    {roleConfig.label}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2 transition-opacity">

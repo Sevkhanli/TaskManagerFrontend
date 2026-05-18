@@ -24,11 +24,17 @@ export enum UserRole {
     USER = 'USER'
 }
 
+export interface UserRoleObject {
+    id: number;
+    name: string;
+}
+
 export interface User {
     id: string;
     email: string;
     fullName: string;
     role: UserRole | string;
+    roles?: UserRoleObject[];
     createdAt: string;
 }
 
