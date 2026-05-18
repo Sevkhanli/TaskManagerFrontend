@@ -169,6 +169,10 @@ export const tasksApi = {
         const response = await api.get<GroupedTaskResponse[]>('/api/tasks/grouped');
         return response.data;
     },
+    assignToRole: async (taskData: { title: string, description: string, deadline: string, roleName: string }): Promise<string> => {
+        const response = await api.post<string>('/api/tasks/admin/assign-to-role', taskData);
+        return response.data;
+    },
     deleteTask: async (id: number): Promise<void> => {
         await api.delete(`/api/tasks/${id}`);
     }
@@ -203,12 +207,22 @@ export const penaltyApi = {
         const response = await api.get<UserPenaltyStats>(`/api/penalties/user/${userId}/summary`);
         return response.data;
     },
+    getPenaltiesByRole: async (roleName: string): Promise<Penalty[]> => {
+        const response = await api.get<Penalty[]>(`/api/penalties/role/${roleName}`);
+        return response.data;
+    },
     markAsPaid: async (penaltyId: number): Promise<any> => {
         const response = await api.post(`/api/penalties/${penaltyId}/mark-paid`);
         return response.data;
     },
     waive: async (penaltyId: number, waiveReason: string): Promise<any> => {
         const response = await api.post('/api/penalties/waive', { penaltyId, waiveReason });
+        return response.data;
+    },
+    waiveAllRole: async (roleName: string, reason: string): Promise<any> => {
+        const response = await api.post(`/api/penalties/role/${roleName}/waive-all`, null, {
+            params: { reason }
+        });
         return response.data;
     }
 };

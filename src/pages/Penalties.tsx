@@ -147,8 +147,10 @@ export const Penalties: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedRole, setSelectedRole] = useState<string>('');
     const isAdmin = user?.role === UserRole.SUPER_ADMIN;
     const [actionLoading, setActionLoading] = useState<number | null>(null);
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     // Modal states
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
@@ -157,9 +159,16 @@ export const Penalties: React.FC = () => {
     const fetchPenalties = async () => {
         setLoading(true);
         try {
-            const data = isAdmin 
-                ? await penaltyApi.getAllPenalties() 
-                : await penaltyApi.getMyPenalties();
+            let data: Penalty[] = [];
+            if (isAdmin) {
+                if (selectedRole) {
+                    data = await penaltyApi.getPenaltiesByRole(selectedRole);
+                } else {
+                    data = await penaltyApi.getAllPenalties();
+                }
+            } else {
+                data = await penaltyApi.getMyPenalties();
+            }
             setPenalties(data);
             setError(null);
         } catch (err) {
@@ -167,6 +176,25 @@ export const Penalties: React.FC = () => {
             setError('Failed to retrieve penalty records.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleBulkWaive = async () => {
+        if (!selectedRole) return;
+        const reason = prompt(`"${selectedRole}" rolu üzrə bütün cərimələri ləğv etmək üçün səbəb qeyd edin:`);
+        if (!reason) return;
+
+        setBulkLoading(true);
+        try {
+            await penaltyApi.waiveAllRole(selectedRole, reason);
+            await fetchPenalties();
+            window.dispatchEvent(new CustomEvent('penalty-update'));
+            alert('Roldakı bütün cərimələr uğurla ləğv edildi.');
+        } catch (err) {
+            console.error('[Penalties] Bulk waive error:', err);
+            alert('Xəta: Toplu ləğv etmə uğursuz oldu.');
+        } finally {
+            setBulkLoading(false);
         }
     };
 
@@ -204,7 +232,7 @@ export const Penalties: React.FC = () => {
         if (user) {
             fetchPenalties();
         }
-    }, [user, isAdmin]);
+    }, [user, isAdmin, selectedRole]);
 
     console.log('[Penalties] Rendering. User:', user?.email, 'isAdmin:', isAdmin);
 
@@ -252,6 +280,30 @@ export const Penalties: React.FC = () => {
                     </p>
                 </header>
                 <div className="flex items-center gap-3">
+                    {isAdmin && (
+                        <div className="flex items-center gap-2">
+                             <select 
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                className="bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-600 font-bold"
+                            >
+                                <option value="">ALL ROLES</option>
+                                <option value="ROLE_SATIS">ROLE_SATIS</option>
+                                <option value="ROLE_TEKNIK">ROLE_TEKNIK</option>
+                                <option value="ROLE_ADMIN">ROLE_ADMIN</option>
+                            </select>
+                            {selectedRole && (
+                                <button 
+                                    onClick={handleBulkWaive}
+                                    disabled={bulkLoading || loading}
+                                    className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-amber-500/10 whitespace-nowrap"
+                                >
+                                    {bulkLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
+                                    WAIVE ALL FOR {selectedRole}
+                                </button>
+                            )}
+                        </div>
+                    )}
                     <button 
                         onClick={fetchPenalties}
                         disabled={loading}

@@ -29,6 +29,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     const [status, setStatus] = useState<TaskStatus>(TaskStatus.TODO);
     const [deadline, setDeadline] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
+    const [assignmentType, setAssignmentType] = useState<'user' | 'role'>('user');
+    const [roleName, setRoleName] = useState('ROLE_SATIS');
     const [completionDescription, setCompletionDescription] = useState('');
     const [evidenceLink, setEvidenceLink] = useState('');
 
@@ -87,6 +89,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             setStatus(TaskStatus.TODO);
             setDeadline(new Date().toISOString().split('T')[0]);
             setAssigneeId(currentUser.id);
+            setAssignmentType('user');
+            setRoleName('ROLE_SATIS');
             setCompletionDescription('');
             setEvidenceLink('');
         }
@@ -191,15 +195,68 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         </div>
 
                         {/* Assignee Field (Admin Only) */}
-                        {isAdmin && (
+                        {isAdmin && !isEditing && (
+                            <div>
+                                <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">
+                                    <UserIcon className="w-3 h-3" /> Assignment Scope
+                                </label>
+                                <div className="flex bg-zinc-100 p-1 rounded-xl mb-4">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setAssignmentType('user')}
+                                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${assignmentType === 'user' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+                                    >
+                                        Individual User
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setAssignmentType('role')}
+                                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${assignmentType === 'role' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
+                                    >
+                                        Department Role
+                                    </button>
+                                </div>
+
+                                {assignmentType === 'user' ? (
+                                    <select 
+                                        value={assigneeId}
+                                        onChange={(e) => setAssigneeId(e.target.value)}
+                                        className="input-field"
+                                    >
+                                        {users.map((u) => (
+                                            <option key={u.id} value={u.id}>{u.fullName} {u.id === currentUser.id ? '(Me)' : ''}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <select 
+                                            value={roleName}
+                                            onChange={(e) => setRoleName(e.target.value)}
+                                            className="input-field"
+                                        >
+                                            <option value="ROLE_SATIS">ROLE_SATIS (Sales)</option>
+                                            <option value="ROLE_TEKNIK">ROLE_TEKNIK (Technical)</option>
+                                            <option value="ROLE_ADMIN">ROLE_ADMIN (Admin)</option>
+                                            <option value="ROLE_USER">ROLE_USER (General User)</option>
+                                        </select>
+                                        <p className="text-[10px] text-zinc-400 font-mono italic">
+                                            Note: This will create separate tasks for every user belonging to this registry group.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {isAdmin && isEditing && (
                             <div>
                                 <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">
-                                    <UserIcon className="w-3 h-3" /> Assign To
+                                    <UserIcon className="w-3 h-3" /> Assignee
                                 </label>
                                 <select 
                                     value={assigneeId}
                                     onChange={(e) => setAssigneeId(e.target.value)}
                                     className="input-field"
+                                    disabled={!canEditMetadata}
                                 >
                                     {users.map((u) => (
                                         <option key={u.id} value={u.id}>{u.fullName} {u.id === currentUser.id ? '(Me)' : ''}</option>
@@ -270,7 +327,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         <div className="flex gap-3">
                             <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
                             <button 
-                                onClick={() => onSave({ title, description, status, deadline, assigneeId: assigneeId as any, completionDescription, evidenceLink })}
+                                onClick={() => onSave({ 
+                                    title, 
+                                    description, 
+                                    status, 
+                                    deadline, 
+                                    assigneeId: assigneeId as any, 
+                                    roleName: assignmentType === 'role' ? roleName : undefined,
+                                    completionDescription, 
+                                    evidenceLink 
+                                } as any)}
                                 className="btn-primary px-8 flex items-center gap-2"
                                 disabled={loading}
                             >

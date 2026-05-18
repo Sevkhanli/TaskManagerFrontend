@@ -191,11 +191,16 @@ export const Tasks: React.FC = () => {
         }
     };
 
-    const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string, completionDescription?: string, evidenceLink?: string }) => {
+    const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string, completionDescription?: string, evidenceLink?: string, roleName?: string }) => {
         if (!taskData.title?.trim()) {
             alert('Mission title is mandatory for registry.');
             return;
         }
+
+        const formatDateForBackend = (dateStr: string) => {
+            const date = new Date(dateStr);
+            return date.toISOString().split('.')[0];
+        };
 
         try {
             setSaveLoading(true);
@@ -203,8 +208,30 @@ export const Tasks: React.FC = () => {
             
             console.group('[Tasks] Save Operation');
             console.log('Mode:', selectedTask ? 'UPDATE' : 'CREATE');
+            console.log('Role Target:', taskData.roleName);
             console.log('Selected Task ID:', selectedTask?.id);
             console.log('Payload from Modal:', taskData);
+
+            // SPECIAL CASE: Role-Based Assignment
+            if (!selectedTask && isAdmin && taskData.roleName) {
+                console.log('[Tasks] Triggering role-based assignment...');
+                const deadline = taskData.deadline ? formatDateForBackend(taskData.deadline) : formatDateForBackend(new Date().toISOString());
+                const rolePayload = {
+                    title: taskData.title || '',
+                    description: taskData.description || '',
+                    deadline: deadline,
+                    roleName: taskData.roleName
+                };
+                
+                const message = await tasksApi.assignToRole(rolePayload);
+                alert(message);
+                
+                console.groupEnd();
+                setIsModalOpen(false);
+                setSelectedTask(null);
+                setTimeout(fetchUsersAndTasks, 500);
+                return;
+            }
 
             // Special Case: Task Completion Flow
             const isCompleting = selectedTask && taskData.status === TaskStatus.COMPLETED && selectedTask.status !== TaskStatus.COMPLETED;
@@ -248,11 +275,6 @@ export const Tasks: React.FC = () => {
                     return; // STOP IF COMPLETION FAILED
                 }
             }
-
-            const formatDateForBackend = (dateStr: string) => {
-                const date = new Date(dateStr);
-                return date.toISOString().split('.')[0];
-            };
 
             if (selectedTask) {
                 // UPDATE Logic
