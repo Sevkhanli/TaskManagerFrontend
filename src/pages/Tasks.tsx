@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock, Check } from 'lucide-react';
 import { Task, TaskStatus, User, UserRole } from '../types';
 import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO, isPast } from 'date-fns';
 import { tasksApi, TaskResponse, authApi, GroupedTaskResponse, penaltyApi } from '../api';
 import { useNotification } from '../contexts/NotificationContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface GroupedTask {
     date: string;
@@ -23,6 +24,10 @@ export const Tasks: React.FC = () => {
     const [saveLoading, setSaveLoading] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedRole, setSelectedRole] = useState<string>('');
+    const [dbRoles, setDbRoles] = useState<string[]>([]);
+    const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+    const [roleSearchQuery, setRoleSearchQuery] = useState('');
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [viewMode, setViewMode] = useState<'list' | 'folder'>('list');
     const [groupedTasks, setGroupedTasks] = useState<GroupedTask[]>([]);
@@ -102,6 +107,14 @@ export const Tasks: React.FC = () => {
             const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
             setTasks(mappedTasks);
 
+            // Fetch DB roles for filter
+            if (isAdmin && dbRoles.length === 0) {
+                const roles = await authApi.getRoles();
+                if (roles && roles.length > 0) {
+                    setDbRoles(roles.map(r => r.toUpperCase()));
+                }
+            }
+
             if (viewMode === 'folder') {
                 const groupedData = await tasksApi.getGroupedTasks();
                 const mappedGrouped = groupedData.map(group => ({
@@ -142,14 +155,15 @@ export const Tasks: React.FC = () => {
                 
                 if (Array.isArray(users)) {
                     currentUsers = users.map((u: any) => {
-                        const originalRole = u.role || 'USER';
-                        const isAdminRole = (String(u.fullName).toLowerCase().includes('admin') || String(u.role).toLowerCase().includes('admin'));
+                        const rawRole = String(u.role || 'USER').toUpperCase();
+                        // Only map to SUPER_ADMIN if it's strictly an admin role or matching our enum
+                        const isAdminRole = rawRole === 'SUPER_ADMIN' || rawRole === 'ADMIN' || (String(u.fullName).toLowerCase().includes('super admin') && rawRole !== 'USER');
                         
                         return {
                             id: String(u.id),
                             fullName: u.fullName || u.name || 'User',
                             email: u.email || '', 
-                            role: isAdminRole ? UserRole.SUPER_ADMIN : originalRole,
+                            role: isAdminRole ? UserRole.SUPER_ADMIN : (u.role || 'USER'),
                             createdAt: ''
                         };
                     });
@@ -409,7 +423,10 @@ export const Tasks: React.FC = () => {
             const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
             const matchesSearch = titleMatch || assigneeMatch;
             
-            if (isAdmin) return matchesSearch;
+            // Apply role filter if selected
+            const matchesRole = !selectedRole || (t.assignee?.role === selectedRole);
+            
+            if (isAdmin) return matchesSearch && matchesRole;
             
             const myNameRaw = (user?.fullName || '').toLowerCase().trim();
             const myEmailRaw = (user?.email || '').toLowerCase().trim();
@@ -451,7 +468,9 @@ export const Tasks: React.FC = () => {
         const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
         const matchesSearch = titleMatch || assigneeMatch;
         
-        if (isAdmin) return matchesSearch;
+        const matchesRole = !selectedRole || (t.assignee?.role === selectedRole);
+        
+        if (isAdmin) return matchesSearch && matchesRole;
         
         const myNameRaw = (user?.fullName || '').toLowerCase().trim();
         const myEmailRaw = (user?.email || '').toLowerCase().trim();
@@ -538,6 +557,13 @@ export const Tasks: React.FC = () => {
         );
     };
 
+    const filteredRoles = React.useMemo(() => {
+        const query = roleSearchQuery.toLowerCase().trim();
+        const roles = Array.from(new Set(['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER', ...dbRoles])).filter(Boolean).sort();
+        if (!query) return roles;
+        return roles.filter(role => role.toLowerCase().includes(query));
+    }, [dbRoles, roleSearchQuery]);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -570,6 +596,77 @@ export const Tasks: React.FC = () => {
                     >
                         <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
                     </button>
+
+                    {isAdmin && (
+                        <div className="relative">
+                            <button 
+                                onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
+                            >
+                                <span className="truncate">{selectedRole || 'BÜTÜN ROLLAR'}</span>
+                                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {isRoleMenuOpen && (
+                                    <>
+                                        <div 
+                                            className="fixed inset-0 z-40" 
+                                            onClick={() => setIsRoleMenuOpen(false)}
+                                        />
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="absolute right-0 top-full mt-2 w-64 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                        >
+                                            <div className="p-3 border-b border-zinc-100">
+                                                <div className="relative">
+                                                    <Search className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                                                    <input 
+                                                        type="text"
+                                                        value={roleSearchQuery}
+                                                        onChange={(e) => setRoleSearchQuery(e.target.value)}
+                                                        placeholder="Rol axtar..."
+                                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                <button 
+                                                    onClick={() => {
+                                                        setSelectedRole('');
+                                                        setIsRoleMenuOpen(false);
+                                                        setRoleSearchQuery('');
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                >
+                                                    BÜTÜN ROLLAR
+                                                    {!selectedRole && <Check className="w-3 h-3" />}
+                                                </button>
+                                                {filteredRoles.filter(r => r !== '').map(role => (
+                                                    <button 
+                                                        key={role}
+                                                        onClick={() => {
+                                                            setSelectedRole(role);
+                                                            setIsRoleMenuOpen(false);
+                                                            setRoleSearchQuery('');
+                                                        }}
+                                                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${selectedRole === role ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                    >
+                                                        {role}
+                                                        {selectedRole === role && <Check className="w-3 h-3" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input 

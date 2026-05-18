@@ -6,7 +6,6 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { AdminLogin } from './pages/AdminLogin';
 import { UserLogin } from './pages/UserLogin';
-import { Dashboard } from './pages/Dashboard';
 import { Tasks } from './pages/Tasks';
 import { Penalties } from './pages/Penalties';
 import { Users } from './pages/Users';
@@ -38,7 +37,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: UserR
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         console.warn('[ProtectedRoute] Access denied for role:', user.role, 'on path:', location.pathname);
-        return <Navigate to="/" replace />;
+        return <Navigate to="/tasks" replace />;
     }
 
     console.log('[ProtectedRoute] Rendering children for', location.pathname);
@@ -60,7 +59,7 @@ export default function App() {
                                 <Layout />
                             </ProtectedRoute>
                         }>
-                            <Route index element={<Dashboard />} />
+                            <Route index element={<Navigate to="/tasks" replace />} />
                             <Route path="tasks" element={<Tasks />} />
                             <Route path="penalties" element={<Penalties />} />
                             <Route path="users" element={

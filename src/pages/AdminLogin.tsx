@@ -33,7 +33,7 @@ export const AdminLogin: React.FC = () => {
             
             // Allow a tiny frame for React to flush state before navigating
             setTimeout(() => {
-                const from = (location.state as any)?.from?.pathname || '/';
+                const from = (location.state as any)?.from?.pathname || '/tasks';
                 console.log('[AdminLogin] Navigating to:', from);
                 navigate(from, { replace: true });
             }, 50);

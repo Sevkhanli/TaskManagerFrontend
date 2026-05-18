@@ -12,12 +12,14 @@ import {
     XCircle,
     RefreshCcw,
     X,
-    MessageSquare
+    MessageSquare,
+    ChevronDown,
+    Check
 } from 'lucide-react';
-import { Penalty, PenaltyStatus, PenaltyType, UserRole } from '../types';
+import { Penalty, PenaltyStatus, PenaltyType, UserRole, User } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
-import { penaltyApi } from '../api';
+import { penaltyApi, authApi } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNotification } from '../contexts/NotificationContext';
 
@@ -150,6 +152,9 @@ export const Penalties: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRole, setSelectedRole] = useState<string>('');
+    const [dbRoles, setDbRoles] = useState<string[]>([]);
+    const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+    const [roleSearchQuery, setRoleSearchQuery] = useState('');
     const isAdmin = user?.role === UserRole.SUPER_ADMIN;
     const [actionLoading, setActionLoading] = useState<number | null>(null);
     const [bulkLoading, setBulkLoading] = useState(false);
@@ -167,6 +172,14 @@ export const Penalties: React.FC = () => {
                     data = await penaltyApi.getPenaltiesByRole(selectedRole);
                 } else {
                     data = await penaltyApi.getAllPenalties();
+                }
+                
+                // Also fetch roles for the filter if not already fetched
+                if (dbRoles.length === 0) {
+                    const roles = await authApi.getRoles();
+                    if (roles && roles.length > 0) {
+                        setDbRoles(roles.map(r => r.toUpperCase()));
+                    }
                 }
             } else {
                 data = await penaltyApi.getMyPenalties();
@@ -270,6 +283,13 @@ export const Penalties: React.FC = () => {
         ];
     }, [filteredPenalties]);
 
+    const filteredRoles = React.useMemo(() => {
+        const query = roleSearchQuery.toLowerCase().trim();
+        const roles = Array.from(new Set(['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER', ...dbRoles])).filter(Boolean).sort();
+        if (!query) return roles;
+        return roles.filter(role => role.toLowerCase().includes(query));
+    }, [dbRoles, roleSearchQuery]);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -286,16 +306,75 @@ export const Penalties: React.FC = () => {
                 <div className="flex items-center gap-3">
                     {isAdmin && (
                         <div className="flex items-center gap-2">
-                             <select 
-                                value={selectedRole}
-                                onChange={(e) => setSelectedRole(e.target.value)}
-                                className="bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-600 font-bold"
-                            >
-                                <option value="">BÜTÜN ROLLAR</option>
-                                <option value="ROLE_SATIS">ROLE_SATIS</option>
-                                <option value="ROLE_TEKNIK">ROLE_TEKNIK</option>
-                                <option value="ROLE_ADMIN">ROLE_ADMIN</option>
-                            </select>
+                             {/* Searchable Role Dropdown */}
+                             <div className="relative">
+                                <button 
+                                    onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
+                                >
+                                    <span className="truncate">{selectedRole || 'BÜTÜN ROLLAR'}</span>
+                                    <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                <AnimatePresence>
+                                    {isRoleMenuOpen && (
+                                        <>
+                                            <div 
+                                                className="fixed inset-0 z-40" 
+                                                onClick={() => setIsRoleMenuOpen(false)}
+                                            />
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute right-0 top-full mt-2 w-64 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                            >
+                                                <div className="p-3 border-b border-zinc-100">
+                                                    <div className="relative">
+                                                        <Search className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                                                        <input 
+                                                            type="text"
+                                                            value={roleSearchQuery}
+                                                            onChange={(e) => setRoleSearchQuery(e.target.value)}
+                                                            placeholder="Rol axtar..."
+                                                            className="w-full bg-zinc-50 border border-zinc-100 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                    <button 
+                                                        onClick={() => {
+                                                            setSelectedRole('');
+                                                            setIsRoleMenuOpen(false);
+                                                            setRoleSearchQuery('');
+                                                        }}
+                                                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                    >
+                                                        BÜTÜN ROLLAR
+                                                        {!selectedRole && <Check className="w-3 h-3" />}
+                                                    </button>
+                                                    {filteredRoles.filter(r => r !== '').map(role => (
+                                                        <button 
+                                                            key={role}
+                                                            onClick={() => {
+                                                                setSelectedRole(role);
+                                                                setIsRoleMenuOpen(false);
+                                                                setRoleSearchQuery('');
+                                                            }}
+                                                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${selectedRole === role ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                        >
+                                                            {role}
+                                                            {selectedRole === role && <Check className="w-3 h-3" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        </>
+                                    )}
+                                </AnimatePresence>
+                             </div>
+
                             {selectedRole && (
                                 <button 
                                     onClick={handleBulkWaive}
