@@ -11,7 +11,7 @@ export const UserLogin: React.FC = () => {
     const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [credentials, setCredentials] = useState({ email: 'staff@example.com', password: '' });
+    const [credentials, setCredentials] = useState({ email: '', password: '' });
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

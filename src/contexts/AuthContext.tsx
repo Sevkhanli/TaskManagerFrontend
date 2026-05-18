@@ -49,20 +49,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const decoded = parseJwt(tokenToUse);
                     console.log('[Auth] Decoded token for check:', decoded);
 
-                    const email = decoded?.sub || response.email || 'User';
-                    const fullName = response.fullName || response.name || 'User';
+                    const email = decoded?.sub || response.email || response.username || 'User';
+                    const fullName = response.fullName || response.name || response.username || 'User';
                     
-                    // Priority 1: JWT Roles array
-                    // Priority 2: backend string role field
-                    // Priority 3: email pattern matches
-                    let role = UserRole.USER;
-                    const hasAdminRole = decoded?.roles?.some((r: string) => r === 'ROLE_ADMIN' || r === 'ADMIN');
-                    if (hasAdminRole || decoded?.role === 'admin' || response.role === 'admin' || email.toLowerCase().includes('admin')) {
+                    // Priority extraction of role
+                    let roleStr = '';
+                    const extract = (o: any): string => {
+                        if (!o) return '';
+                        if (typeof o === 'string') return o;
+                        if (typeof o === 'object') return o.name || o.authority || o.roleName || o.role || o.value || o.authorityName || '';
+                        return '';
+                    };
+
+                    const findAllPotentialRoles = (data: any, depth = 0): string[] => {
+                        if (!data || depth > 3) return [];
+                        if (typeof data === 'string') return [data.toUpperCase().trim()];
+                        if (Array.isArray(data)) return data.flatMap(i => findAllPotentialRoles(i, depth + 1));
+                        if (typeof data === 'object') {
+                            return Object.entries(data).flatMap(([key, val]) => {
+                                if (['email', 'fullName', 'name', 'password', 'createdAt', 'id', 'exp', 'iat', 'sub'].includes(key)) return [];
+                                return findAllPotentialRoles(val, depth + 1);
+                            });
+                        }
+                        return [];
+                    };
+
+                    const rolesToTry = findAllPotentialRoles({ response, decoded, profile: response });
+                    const validRoles = rolesToTry.filter(r => r && r.length > 2 && !r.includes('@') && !r.includes('/'));
+                    
+                    roleStr = validRoles.find(r => 
+                        r.includes('ADMIN') || r.includes('SATIS') || r.includes('MANAGER') || (r !== 'USER' && r !== 'ROLE_USER')
+                    ) || validRoles[0] || 'USER';
+
+                    if (!roleStr) roleStr = 'USER';
+                    
+                    const rawRole = roleStr.toUpperCase();
+                    let role: UserRole | string = UserRole.USER;
+                    const isKnownAdmin = rawRole === 'SUPER_ADMIN' || rawRole === 'ADMIN' || rawRole === 'ROLE_ADMIN';
+                    if (isKnownAdmin || email.toLowerCase().includes('admin')) {
                         role = UserRole.SUPER_ADMIN;
+                    } else {
+                        role = rawRole;
                     }
 
                     const userData: User = {
-                        id: String(decoded?.userId || email || 'unknown'),
+                        id: String(decoded?.userId || response.id || email || 'unknown'),
                         email: email,
                         fullName: fullName,
                         role: role,
@@ -135,17 +166,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 try {
                     const profile = await authApi.getMe();
                     const decoded = parseJwt(response.accessToken);
-                    const email = profile.email || decoded?.sub || response.email || credentials.email;
-                    const fullName = profile.fullName || profile.name || response.fullName || response.name || 'User';
+                    const email = profile.email || profile.username || decoded?.sub || response.email || credentials.email;
+                    const fullName = profile.fullName || profile.name || response.fullName || response.name || profile.username || 'User';
                     
-                    let role = UserRole.USER;
-                    const hasAdminRole = decoded?.roles?.some((r: string) => r === 'ROLE_ADMIN' || r === 'ADMIN');
-                    if (hasAdminRole || decoded?.role === 'admin' || profile.role === 'admin' || email.toLowerCase().includes('admin')) {
+                    // Extract role from profile, token or response with high priority
+                    let roleStr = '';
+                    const extract = (o: any): string => {
+                        if (!o) return '';
+                        if (typeof o === 'string') return o;
+                        if (typeof o === 'object') return o.name || o.authority || o.roleName || o.role || o.value || o.authorityName || '';
+                        return '';
+                    };
+
+                    const findAllPotentialRoles = (data: any, depth = 0): string[] => {
+                        if (!data || depth > 3) return [];
+                        if (typeof data === 'string') return [data.toUpperCase().trim()];
+                        if (Array.isArray(data)) return data.flatMap(i => findAllPotentialRoles(i, depth + 1));
+                        if (typeof data === 'object') {
+                            return Object.entries(data).flatMap(([key, val]) => {
+                                if (['email', 'fullName', 'name', 'password', 'createdAt', 'id', 'exp', 'iat', 'sub'].includes(key)) return [];
+                                return findAllPotentialRoles(val, depth + 1);
+                            });
+                        }
+                        return [];
+                    };
+
+                    const rolesToTry = findAllPotentialRoles({ profile, response, decoded });
+                    const validRoles = rolesToTry.filter(r => r && r.length > 2 && !r.includes('@') && !r.includes('/'));
+                    
+                    roleStr = validRoles.find(r => 
+                        r.includes('ADMIN') || r.includes('SATIS') || r.includes('MANAGER') || (r !== 'USER' && r !== 'ROLE_USER')
+                    ) || validRoles[0] || 'USER';
+                    
+                    if (!roleStr) roleStr = 'USER';
+                    
+                    const rawRole = roleStr.toUpperCase();
+                    let role: UserRole | string = UserRole.USER;
+                    const isKnownAdmin = rawRole === 'SUPER_ADMIN' || rawRole === 'ADMIN' || rawRole === 'ROLE_ADMIN';
+                    if (isKnownAdmin || email.toLowerCase().includes('admin')) {
                         role = UserRole.SUPER_ADMIN;
+                    } else {
+                        role = rawRole;
                     }
                     
                     const userData: User = {
-                        id: String(decoded?.userId || email || 'unknown'),
+                        id: String(decoded?.userId || profile.id || response.id || email || 'unknown'),
                         email: email,
                         fullName: fullName,
                         role: role,

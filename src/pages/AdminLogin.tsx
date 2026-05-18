@@ -11,7 +11,7 @@ export const AdminLogin: React.FC = () => {
     const location = useLocation();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [credentials, setCredentials] = useState({ email: 'admin@taskflow.pro', password: '' });
+    const [credentials, setCredentials] = useState({ email: '', password: '' });
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();

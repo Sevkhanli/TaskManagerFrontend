@@ -92,8 +92,12 @@ export interface AuthResponse {
     refreshToken: string;
     fullName: string;
     email: string;
+    id?: any;
     name?: string;
-    role?: string;
+    username?: string;
+    role?: any;
+    roles?: any[];
+    authorities?: any[];
 }
 
 export const authApi = {
@@ -123,13 +127,25 @@ export const authApi = {
     },
     getRoles: async (): Promise<string[]> => {
         try {
-            const response = await api.get<any[]>('/api/auth/admin/roles');
+            const response = await api.get<any[]>('/api/auth/roles');
             // Assuming the roles table returns objects with a 'name' property as seen in screenshot
             return response.data.map(r => r.name || r);
         } catch (err) {
             console.error('Failed to fetch roles from API, falling back to static list', err);
             return ['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER'];
         }
+    },
+    updateUserRole: async (userId: string | number, roleName: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.put<{ success: boolean; message: string }>(`/api/auth/admin/users/${userId}/role`, null, {
+            params: { roleName }
+        });
+        return response.data;
+    },
+    createRole: async (roleName: string): Promise<{ success: boolean; message: string }> => {
+        const response = await api.post<{ success: boolean; message: string }>('/api/auth/admin/roles', null, {
+            params: { roleName }
+        });
+        return response.data;
     }
 };
 
