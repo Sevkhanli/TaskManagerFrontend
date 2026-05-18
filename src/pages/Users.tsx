@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, Mail, Shield, User as UserIcon, Trash2, Edit3, Key, MoreVertical, RefreshCcw, Gavel, AlertCircle, CheckCircle2, XCircle, X, ChevronRight } from 'lucide-react';
-import { User, UserRole, UserPenaltyStats } from '../types';
+import { User, UserRole, UserPenaltyStats, UserRoleObject } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { authApi, penaltyApi } from '../api';
 import { useNotification } from '../contexts/NotificationContext';
 
 const getRoleConfig = (rolesArray?: any[]) => {
     if (!rolesArray || rolesArray.length === 0) {
-        return { label: 'USER', className: 'bg-gray-100 text-gray-700 border border-gray-200' };
+        return { label: 'USER', className: 'text-zinc-600' };
     }
-    const rawRole = typeof rolesArray[0] === 'string' ? rolesArray[0] : (rolesArray[0].name || rolesArray[0].authority || 'USER');
-    const cleanRole = rawRole.replace("ROLE_", "").toUpperCase().trim();
+    
+    // Find the first non-USER role if possible, otherwise use the first one
+    const primaryRoleObj = rolesArray.find(r => {
+        const n = String(typeof r === 'string' ? r : (r.name || r.authority || '')).toUpperCase();
+        return n !== 'USER' && n !== 'ROLE_USER' && n !== '';
+    }) || rolesArray[0];
 
-    switch (cleanRole) {
-        case 'SUPER_ADMIN':
-            return { label: 'SUPER_ADMIN', className: 'bg-red-100 text-red-700 border border-red-200' };
-        case 'ADMIN':
-            return { label: 'ADMIN', className: 'bg-purple-100 text-purple-700 border border-purple-200' };
-        case 'SATIS':
-            return { label: 'SATIS', className: 'bg-blue-100 text-blue-700 border border-blue-200' };
-        case 'KOORDINATOR':
-            return { label: 'KOORDINATOR', className: 'bg-amber-100 text-amber-700 border border-amber-200' };
-        default:
-            return { label: cleanRole, className: 'bg-gray-100 text-gray-700 border border-gray-200' };
-    }
+    const rawRole = typeof primaryRoleObj === 'string' ? primaryRoleObj : (primaryRoleObj.name || primaryRoleObj.authority || 'USER');
+    const cleanRole = String(rawRole).replace("ROLE_", "").toUpperCase().trim();
+
+    const isAdmin = cleanRole.includes('ADMIN');
+    
+    return { 
+        label: cleanRole || 'USER', 
+        className: isAdmin ? 'text-red-600 font-black' : 'text-zinc-600'
+    };
 };
 
 const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userId, onClose }) => {
@@ -360,33 +361,39 @@ export const Users: React.FC = () => {
 
             // 2. Fetch users
             const data = await authApi.getUsers();
+            if (data && data.length > 0) {
+                console.log('[Users] Raw user from server:', JSON.stringify(data[0], null, 2));
+            }
             console.log('[Users] Data received from server:', data);
             
             if (Array.isArray(data)) {
                 const mappedUsers: User[] = data.map((u: any) => {
-                    // Extract role strictly from roles array or role field
-                    let rawRole = 'USER';
-                    let rolesArray = [];
+                    // Comprehensive role extraction - checks 'roles', 'authorities', and 'role' fields
+                    const rawRolesList = [
+                        ...(Array.isArray(u.roles) ? u.roles : []),
+                        ...(Array.isArray(u.authorities) ? u.authorities : []),
+                        ...(u.role ? [u.role] : [])
+                    ];
 
-                    if (u.roles && Array.isArray(u.roles) && u.roles.length > 0) {
-                        rolesArray = u.roles;
-                        const firstRole = u.roles[0];
-                        rawRole = typeof firstRole === 'string' ? firstRole : (firstRole.name || firstRole.authority || 'USER');
-                    } else if (u.role) {
-                        rawRole = typeof u.role === 'string' ? u.role : (u.role.name || u.role.authority || 'USER');
-                    }
-                    
-                    rawRole = String(rawRole).toUpperCase().trim();
+                    const rolesArray: UserRoleObject[] = rawRolesList.map(r => {
+                        if (typeof r === 'string') return { id: 0, name: r };
+                        const name = r.name || r.authority || r.roleName || (typeof r === 'object' ? Object.values(r).find(v => typeof v === 'string' && v.startsWith('ROLE_')) : null) || 'USER';
+                        return { id: r.id || 0, name: String(name) };
+                    });
 
-                    // Special check for super admin presence
-                    const isSuper = rawRole.includes('SUPER') || 
-                                   String(u.fullName || u.name || u.username || '').toLowerCase().includes('super admin');
-                    
-                    const roleLabel = isSuper ? 'SUPER_ADMIN' : rawRole;
+                    // filter out duplicates and empty values
+                    const uniqueRoles = rolesArray.filter((v, i, a) => v.name && a.findIndex(t => t.name === v.name) === i);
 
-                    // Email extraction
+                    // primary role label for display calculations
+                    const primaryRole = uniqueRoles.find(r => r.name !== 'USER' && r.name !== 'ROLE_USER') || uniqueRoles[0] || { id: 0, name: 'USER' };
+                    let primaryRoleName = String(primaryRole.name).toUpperCase().trim();
+
+                    // Security check: Only override with SUPER_ADMIN if it's explicitly in the role
+                    const roleLabel = primaryRoleName.includes('SUPER') ? 'SUPER_ADMIN' : primaryRoleName;
+
+                    // Email extraction - fall back to username or ID if direct email is missing
                     let email = u.email || u.username || u.userName || u.user_name || u.login || u.mail || '';
-                    if (!email && u.id && String(u.id).includes('@')) email = String(u.id);
+                    if (!email && u.id && !String(u.id).match(/^\d+$/)) email = String(u.id);
                     if (!email) email = 'No email provided';
 
                     return {
@@ -394,7 +401,7 @@ export const Users: React.FC = () => {
                         fullName: u.fullName || u.name || u.fullNameAz || u.full_name || u.username || u.userName || 'Unknown User',
                         email: email,
                         role: roleLabel,
-                        roles: rolesArray,
+                        roles: uniqueRoles,
                         createdAt: u.createdAt || new Date().toISOString()
                     };
                 });
@@ -648,10 +655,9 @@ export const Users: React.FC = () => {
                     <thead>
                         <tr className="bg-zinc-50 border-b border-zinc-200">
                             <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Əməkdaş</th>
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Təhlükəsizlik İcazəsi</th>
+                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Vəzifə / İcazə</th>
                             <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-center">Status</th>
                             <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Yaranma Tarixi</th>
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Rol</th>
                             <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Ayarlar</th>
                         </tr>
                     </thead>
@@ -679,28 +685,31 @@ export const Users: React.FC = () => {
                                 <tr key={u.id} className="hover:bg-zinc-50/50 transition-colors group">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-center font-bold text-zinc-400 group-hover:bg-zinc-900 group-hover:text-white group-hover:border-zinc-900 transition-all">
-                                                {u.fullName.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-zinc-900">{u.fullName}</p>
-                                                <p className="text-[10px] text-zinc-400 font-mono tracking-tighter">{u.email}</p>
-                                            </div>
+                                            {(() => {
+                                                const isAdmin = u.role.includes('ADMIN');
+                                                return (
+                                                    <>
+                                                        <div className={`w-10 h-10 rounded-xl ${isAdmin ? 'bg-red-50 text-red-600 border-red-100' : 'bg-zinc-100 text-zinc-400 border-zinc-200'} border flex items-center justify-center font-bold group-hover:bg-zinc-900 group-hover:text-white group-hover:border-zinc-900 transition-all`}>
+                                                            {u.fullName.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className={`font-bold ${isAdmin ? 'text-red-600' : 'text-zinc-900'}`}>{u.fullName}</p>
+                                                            <p className="text-[10px] text-zinc-400 font-mono tracking-tighter">{u.email}</p>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            {u.role.includes('ADMIN') ? (
-                                                <Shield className="w-3 h-3 text-red-600" />
-                                            ) : (
-                                                <UserIcon className="w-3 h-3 text-zinc-400" />
-                                            )}
-                                            <span className={`text-[10px] font-black uppercase tracking-widest ${
-                                                u.role.includes('ADMIN') ? 'text-red-600' : 'text-zinc-600'
-                                            }`}>
-                                                {u.roles && u.roles.length > 0 ? (typeof u.roles[0] === 'string' ? u.roles[0].replace('ROLE_', '') : u.roles[0].name.replace('ROLE_', '')) : u.role.replace('ROLE_', '')}
-                                            </span>
-                                        </div>
+                                        {(() => {
+                                            const roleConfig = getRoleConfig(u.roles);
+                                            return (
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${roleConfig.className}`}>
+                                                    {roleConfig.label}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-green-700 text-[10px] font-bold">
@@ -709,16 +718,6 @@ export const Users: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-zinc-500 font-mono text-[11px]">{u.createdAt?.split('T')[0]}</td>
-                                    <td className="px-6 py-4">
-                                        {(() => {
-                                            const roleConfig = getRoleConfig(u.roles);
-                                            return (
-                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${roleConfig.className}`}>
-                                                    {roleConfig.label}
-                                                </span>
-                                            );
-                                        })()}
-                                    </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2 transition-opacity">
                                             <button 
