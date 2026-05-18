@@ -9,7 +9,6 @@ import {
     LogOut,
     Menu,
     X,
-    Bell,
     Wallet,
     RefreshCcw
 } from 'lucide-react';
@@ -182,10 +181,6 @@ export const Layout: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button className="p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg relative">
-                            <Bell className="w-5 h-5" />
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                        </button>
                         <div className="w-8 h-8 rounded-full bg-zinc-200 border border-zinc-300 flex items-center justify-center text-xs font-bold text-zinc-600 overflow-hidden">
                             {user?.fullName?.charAt(0) || '?'}
                         </div>

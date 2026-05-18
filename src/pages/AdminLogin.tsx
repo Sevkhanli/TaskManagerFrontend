@@ -22,6 +22,14 @@ export const AdminLogin: React.FC = () => {
             console.log('[AdminLogin] Invoking login context...');
             const userData = await login(credentials);
             console.log('[AdminLogin] Login successful for:', userData?.email);
+
+            if (userData?.role !== UserRole.SUPER_ADMIN) {
+                console.warn('[AdminLogin] Non-admin user attempted admin login:', userData?.email);
+                setError('Giriş rədd edildi: Bu hesabla admin panelinə daxil olmaq mümkün deyil.');
+                // We should probably log them out if they are logged in but not an admin
+                // For simplicity, we just set the error and the auth context might need manual logout if persistent
+                return;
+            }
             
             // Allow a tiny frame for React to flush state before navigating
             setTimeout(() => {

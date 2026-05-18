@@ -22,6 +22,12 @@ export const UserLogin: React.FC = () => {
             console.log('[UserLogin] Invoking login context...');
             const userData = await login(credentials);
             console.log('[UserLogin] Login successful for:', userData?.email);
+
+            if (userData?.role === UserRole.SUPER_ADMIN) {
+                console.warn('[UserLogin] Admin user attempted user login:', userData?.email);
+                setError('Giriş rədd edildi: Admin hesabı ilə bu portaldan daxil olmaq mümkün deyil. Zəhmət olmasa Super Admin portalını seçin.');
+                return;
+            }
             
             // Allow a tiny frame for React to flush state before navigating
             setTimeout(() => {
