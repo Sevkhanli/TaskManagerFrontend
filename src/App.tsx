@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { AdminLogin } from './pages/AdminLogin';
@@ -47,33 +48,35 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: UserR
 export default function App() {
     return (
         <AuthProvider>
-            <Router>
-                <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/login/admin" element={<AdminLogin />} />
-                    <Route path="/login/user" element={<UserLogin />} />
-                    
-                    <Route path="/" element={
-                        <ProtectedRoute>
-                            <Layout />
-                        </ProtectedRoute>
-                    }>
-                        <Route index element={<Dashboard />} />
-                        <Route path="tasks" element={<Tasks />} />
-                        <Route path="penalties" element={<Penalties />} />
-                        <Route path="users" element={
-                            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
-                                <Users />
+            <NotificationProvider>
+                <Router>
+                    <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/login/admin" element={<AdminLogin />} />
+                        <Route path="/login/user" element={<UserLogin />} />
+                        
+                        <Route path="/" element={
+                            <ProtectedRoute>
+                                <Layout />
                             </ProtectedRoute>
-                        } />
-                        <Route path="settings" element={
-                            <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
-                                <Settings />
-                            </ProtectedRoute>
-                        } />
-                    </Route>
-                </Routes>
-            </Router>
+                        }>
+                            <Route index element={<Dashboard />} />
+                            <Route path="tasks" element={<Tasks />} />
+                            <Route path="penalties" element={<Penalties />} />
+                            <Route path="users" element={
+                                <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
+                                    <Users />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="settings" element={
+                                <ProtectedRoute allowedRoles={[UserRole.SUPER_ADMIN]}>
+                                    <Settings />
+                                </ProtectedRoute>
+                            } />
+                        </Route>
+                    </Routes>
+                </Router>
+            </NotificationProvider>
         </AuthProvider>
     );
 }

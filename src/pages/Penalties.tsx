@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { penaltyApi } from '../api';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNotification } from '../contexts/NotificationContext';
 
 const ConfirmationModal: React.FC<{
     isOpen: boolean;
@@ -143,6 +144,7 @@ const WaiveModal: React.FC<{
 
 export const Penalties: React.FC = () => {
     const { user } = useAuth();
+    const { notify } = useNotification();
     const [penalties, setPenalties] = useState<Penalty[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -189,10 +191,10 @@ export const Penalties: React.FC = () => {
             await penaltyApi.waiveAllRole(selectedRole, reason);
             await fetchPenalties();
             window.dispatchEvent(new CustomEvent('penalty-update'));
-            alert('Roldakı bütün cərimələr uğurla ləğv edildi.');
+            notify('success', 'Toplu Ləğv Etmə', 'Roldakı bütün cərimələr uğurla ləğv edildi.');
         } catch (err) {
             console.error('[Penalties] Bulk waive error:', err);
-            alert('Xəta: Toplu ləğv etmə uğursuz oldu.');
+            notify('error', 'Xəta', 'Toplu ləğv etmə uğursuz oldu.');
         } finally {
             setBulkLoading(false);
         }
@@ -205,9 +207,10 @@ export const Penalties: React.FC = () => {
             await fetchPenalties();
             window.dispatchEvent(new CustomEvent('penalty-update'));
             setConfirmModal({ isOpen: false, id: null });
+            notify('success', 'Ödəniş Qəbul Edildi', 'Cərimə ödənilmiş kimi qeyd edildi.');
         } catch (err) {
             console.error('[Penalties] Mark paid error:', err);
-            alert('Xəta: Ödəniş qeyd edilə bilmədi.');
+            notify('error', 'Xəta', 'Ödəniş qeyd edilə bilmədi.');
         } finally {
             setActionLoading(null);
         }
@@ -220,9 +223,10 @@ export const Penalties: React.FC = () => {
             await fetchPenalties();
             window.dispatchEvent(new CustomEvent('penalty-update'));
             setWaiveModal({ isOpen: false, id: null });
+            notify('success', 'Cərimə Ləğv Edildi', 'Cərimə uğurla ləğv edildi.');
         } catch (err) {
             console.error('[Penalties] Waive error:', err);
-            alert('Xəta: Cərimə ləğv edilə bilmədi.');
+            notify('error', 'Xəta', 'Cərimə ləğv edilə bilmədi.');
         } finally {
             setActionLoading(null);
         }
@@ -287,7 +291,7 @@ export const Penalties: React.FC = () => {
                                 onChange={(e) => setSelectedRole(e.target.value)}
                                 className="bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-600 font-bold"
                             >
-                                <option value="">ALL ROLES</option>
+                                <option value="">BÜTÜN ROLLAR</option>
                                 <option value="ROLE_SATIS">ROLE_SATIS</option>
                                 <option value="ROLE_TEKNIK">ROLE_TEKNIK</option>
                                 <option value="ROLE_ADMIN">ROLE_ADMIN</option>
@@ -299,7 +303,7 @@ export const Penalties: React.FC = () => {
                                     className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-amber-500/10 whitespace-nowrap"
                                 >
                                     {bulkLoading ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <ShieldAlert className="w-4 h-4" />}
-                                    WAIVE ALL FOR {selectedRole}
+                                    HAMSINI LƏĞV ET ({selectedRole})
                                 </button>
                             )}
                         </div>

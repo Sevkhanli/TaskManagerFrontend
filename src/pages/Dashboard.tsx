@@ -16,10 +16,10 @@ import { format } from 'date-fns';
 
 export const Dashboard: React.FC = () => {
     const stats = [
-        { label: 'System Throughput', value: '84.2%', trend: '+4.5%', icon: Zap, color: 'text-yellow-500' },
-        { label: 'Active Task Load', value: '1,248', trend: '+124', icon: Activity, color: 'text-blue-500' },
-        { label: 'SLA Compliance', value: '98.1%', trend: '-0.2%', icon: CheckCircle2, color: 'text-green-500' },
-        { label: 'Pending Penalty Value', value: '3.4k', trend: '+12%', icon: AlertTriangle, color: 'text-red-500' },
+        { label: 'Sistem Keçid Gücü', value: '84.2%', trend: '+4.5%', icon: Zap, color: 'text-yellow-500' },
+        { label: 'Aktiv Tapşırıq Yükü', value: '1,248', trend: '+124', icon: Activity, color: 'text-blue-500' },
+        { label: 'SLA Uyğunluğu', value: '98.1%', trend: '-0.2%', icon: CheckCircle2, color: 'text-green-500' },
+        { label: 'Gözləyən Cərimə Dəyəri', value: '3.4k', trend: '+12%', icon: AlertTriangle, color: 'text-red-500' },
     ];
 
     const recentLogs = [
@@ -34,14 +34,14 @@ export const Dashboard: React.FC = () => {
                 <header>
                     <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        Operational Status / Real-time
+                        Əməliyyat Statusu / Real-vaxt
                     </div>
-                    <h2 className="text-4xl font-black tracking-tighter text-zinc-900">Mission Intelligence</h2>
-                    <p className="text-sm text-zinc-500 max-w-lg mt-2">Executive overview of task distribution, penalty ledgers, and organizational velocity.</p>
+                    <h2 className="text-4xl font-black tracking-tighter text-zinc-900">Missiya İntellekti</h2>
+                    <p className="text-sm text-zinc-500 max-w-lg mt-2">Tapşırıq bölgüsü, cərimə dəftərləri və təşkilati sürət haqqında icraçı icmalı.</p>
                 </header>
                 <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 bg-zinc-100 px-4 py-2 rounded-xl">
                     <Clock className="w-3 h-3 text-zinc-500" />
-                    System Time: {format(new Date(), 'HH:mm:ss')} GMT
+                    Sistem Vaxtı: {format(new Date(), 'HH:mm:ss')} GMT
                 </div>
             </div>
 
@@ -72,12 +72,12 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-zinc-400" />
-                            Performance Analytics
+                            Performans Analitikası
                         </h3>
                         <div className="flex bg-zinc-100 p-1 rounded-lg">
-                            <button className="px-3 py-1 text-[10px] font-bold rounded-md bg-white shadow-sm">24H</button>
-                            <button className="px-3 py-1 text-[10px] font-bold text-zinc-400 rounded-md">7D</button>
-                            <button className="px-3 py-1 text-[10px] font-bold text-zinc-400 rounded-md">30D</button>
+                            <button className="px-3 py-1 text-[10px] font-bold rounded-md bg-white shadow-sm">24S</button>
+                            <button className="px-3 py-1 text-[10px] font-bold text-zinc-400 rounded-md">7G</button>
+                            <button className="px-3 py-1 text-[10px] font-bold text-zinc-400 rounded-md">30G</button>
                         </div>
                     </div>
                     
@@ -85,8 +85,8 @@ export const Dashboard: React.FC = () => {
                         <div className="w-16 h-16 rounded-full bg-white border border-zinc-100 shadow-sm flex items-center justify-center mb-4">
                             <BarChart3 className="w-8 h-8 text-zinc-200" />
                         </div>
-                        <p className="font-bold text-zinc-900">Neural Traffic Visualization</p>
-                        <p className="text-xs text-zinc-400 max-w-xs mt-1 italic">Historical task completion vs. penalty issuance is being synchronized from the primary database cluster.</p>
+                        <p className="font-bold text-zinc-900">Neyral Trafik Vizuallaşdırılması</p>
+                        <p className="text-xs text-zinc-400 max-w-xs mt-1 italic">Tarixi tapşırıq tamamlanması və cərimə verilməsi əsas verilənlər bazası klasterindən sinxronlaşdırılır.</p>
                         <div className="flex gap-2 mt-8">
                             {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.3, 0.5].map((h, i) => (
                                 <motion.div 
@@ -105,9 +105,9 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold flex items-center gap-2">
                             <BellRing className="w-5 h-5 text-zinc-900" />
-                            Real-time Feed
+                            Canlı Axın
                         </h3>
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Global Log</span>
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Qlobal Giriş</span>
                     </div>
 
                     <div className="space-y-4">
@@ -126,22 +126,22 @@ export const Dashboard: React.FC = () => {
                                 <p className="text-sm font-bold text-zinc-900">{log.detail}</p>
                                 <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
                                     <UsersIcon className="w-3 h-3 opacity-50" />
-                                    Initiated by {log.user}
+                                    Tərəfindən başladılıb: {log.user}
                                 </p>
                             </div>
                         ))}
                         <button className="w-full py-3 text-xs font-bold text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl transition-all border border-dashed border-zinc-200">
-                            View Full System Audit
+                            Tam Sistem Auditini Göstər
                         </button>
                     </div>
 
                     <div className="card p-6 bg-zinc-900 text-white relative overflow-hidden group border-none">
                         <div className="absolute inset-0 bg-linear-to-br from-zinc-700 to-zinc-900 opacity-50"></div>
                         <div className="relative z-10">
-                            <h4 className="font-bold mb-2">Premium Support</h4>
-                            <p className="text-xs text-zinc-400 mb-6">Need assistance with your task management logic? Connect with the IT BRAINS support team.</p>
+                            <h4 className="font-bold mb-2">Premium Dəstək</h4>
+                            <p className="text-xs text-zinc-400 mb-6">Tapşırıq idarəetmə məntiqinizlə bağlı köməyə ehtiyacınız var? IT BRAINS dəstək komandası ilə əlaqə saxlayın.</p>
                             <button className="flex items-center gap-2 text-xs font-black uppercase tracking-widest hover:gap-4 transition-all">
-                                Open Secure Comms <ArrowUpRight className="w-4 h-4" />
+                                Təhlükəsiz Əlaqəni Aç <ArrowUpRight className="w-4 h-4" />
                             </button>
                         </div>
                     </div>

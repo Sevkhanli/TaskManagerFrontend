@@ -31,7 +31,7 @@ export const AdminLogin: React.FC = () => {
             }, 50);
         } catch (err: any) {
             console.error('[AdminLogin] Login error:', err);
-            setError(err.message || 'Access Denied: Invalid credentials or server error.');
+            setError(err.message || 'Giriş rədd edildi: Səhv məlumatlar və ya server xətası.');
         } finally {
             setLoading(false);
             console.log('[AdminLogin] Login flow concluded');
@@ -43,7 +43,7 @@ export const AdminLogin: React.FC = () => {
             <div className="w-full max-w-md">
                 <Link to="/login" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors mb-8 group">
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-bold uppercase tracking-widest">Back to Portal</span>
+                    <span className="text-sm font-bold uppercase tracking-widest">Portala Qayıt</span>
                 </Link>
 
                 <motion.div 
@@ -62,8 +62,8 @@ export const AdminLogin: React.FC = () => {
                         </div>
 
                         <header className="mb-8">
-                            <h2 className="text-2xl font-black text-white tracking-tight">Super Admin Entry</h2>
-                            <p className="text-zinc-500 text-sm mt-1">Authorized personnel only. Access is monitored.</p>
+                            <h2 className="text-2xl font-black text-white tracking-tight">Super Admin Girişi</h2>
+                            <p className="text-zinc-500 text-sm mt-1">Yalnız səlahiyyətli şəxslər. Giriş izlənilir.</p>
                         </header>
 
                         <form onSubmit={handleLogin} className="space-y-5">
@@ -77,7 +77,7 @@ export const AdminLogin: React.FC = () => {
                                 </motion.div>
                             )}
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin Identifier</label>
+                                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Admin İdentifikatoru</label>
                                 <div className="relative">
                                     <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
                                     <input 
@@ -92,7 +92,7 @@ export const AdminLogin: React.FC = () => {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Security Key</label>
+                                <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">Təhlükəsizlik Açarı</label>
                                 <div className="relative">
                                     <Lock className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
                                     <input 
@@ -111,7 +111,7 @@ export const AdminLogin: React.FC = () => {
                                 disabled={loading}
                                 className="w-full bg-white text-zinc-950 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-200 transition-all mt-4 flex items-center justify-center gap-2 group disabled:opacity-50"
                             >
-                                {loading ? 'Validating...' : 'Establish Connection'}
+                                {loading ? 'Yoxlanılır...' : 'Giriş Et'}
                                 {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /> }
                             </button>
                         </form>

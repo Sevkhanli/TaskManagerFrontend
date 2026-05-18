@@ -5,6 +5,7 @@ import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO, isPast } from 'date-fns';
 import { tasksApi, TaskResponse, authApi, GroupedTaskResponse, penaltyApi } from '../api';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface GroupedTask {
     date: string;
@@ -13,6 +14,7 @@ interface GroupedTask {
 
 export const Tasks: React.FC = () => {
     const { user } = useAuth();
+    const { notify } = useNotification();
     const isAdmin = user?.role === UserRole.SUPER_ADMIN;
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
@@ -169,7 +171,7 @@ export const Tasks: React.FC = () => {
     if (!user) {
         return (
             <div className="h-64 flex flex-col items-center justify-center gap-4 text-zinc-400 font-mono text-[10px] uppercase tracking-widest">
-                <div className="animate-pulse">Retrieving Registry...</div>
+                <div className="animate-pulse">Reyestr Gözlənilir...</div>
             </div>
         );
     }
@@ -181,11 +183,12 @@ export const Tasks: React.FC = () => {
             setTasks(prev => prev.filter(t => Number(t.id) !== id));
             setIsModalOpen(false);
             setSelectedTask(null);
+            notify('success', 'Tapşırıq Silindi', 'Tapşırıq sistemdən uğurla silindi.');
             setTimeout(fetchUsersAndTasks, 500);
         } catch (err: any) {
             console.error('Delete failed:', err);
             const serverMessage = err.response?.data?.message || err.message;
-            alert('Failed: ' + serverMessage);
+            notify('error', 'Xəta', 'Silinmə uğursuz oldu: ' + serverMessage);
         } finally {
             setSaveLoading(false);
         }
@@ -193,7 +196,7 @@ export const Tasks: React.FC = () => {
 
     const handleSaveTask = async (taskData: Partial<Task> & { assigneeId?: string, completionDescription?: string, evidenceLink?: string, roleName?: string }) => {
         if (!taskData.title?.trim()) {
-            alert('Mission title is mandatory for registry.');
+            notify('info', 'Diqqət', 'Tapşırıq başlığı mütləqdir.');
             return;
         }
 
@@ -224,7 +227,7 @@ export const Tasks: React.FC = () => {
                 };
                 
                 const message = await tasksApi.assignToRole(rolePayload);
-                alert(message);
+                notify('success', 'Toplu Təyinat Uğurlu', message);
                 
                 console.groupEnd();
                 setIsModalOpen(false);
@@ -241,10 +244,11 @@ export const Tasks: React.FC = () => {
                 try {
                     await penaltyApi.completeTask({
                         taskId: parseInt(selectedTask!.id),
-                        completionDescription: taskData.completionDescription || 'Mission objectives finalized.',
+                        completionDescription: taskData.completionDescription || 'Tapşırıq öhdəlikləri yerinə yetirildi.',
                         evidenceLink: taskData.evidenceLink
                     });
                     console.log('[Tasks] Specialized completion success.');
+                    notify('success', 'Tapşırıq Tamamlandı', 'Tapşırıq uğurla tamamlandı və reyestrə işlənildi.');
                     
                     // Delay update to facilitate backend state synchronization
                     console.log('[Tasks] Triggering world sync in 2s...');
@@ -534,22 +538,22 @@ export const Tasks: React.FC = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <header>
-                    <h2 className="text-3xl font-bold tracking-tight">Mission Control</h2>
-                    <p className="text-zinc-500">Operational tasks and strategic objectives.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">Missiya İdarəetmə</h2>
+                    <p className="text-zinc-500">Əməliyyat tapşırıqları və strateji hədəflər.</p>
                 </header>
                 <div className="flex items-center gap-3">
                     <div className="flex bg-zinc-100 p-1 rounded-xl mr-2">
                         <button 
                             onClick={() => setViewMode('list')}
                             className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
-                            title="List View"
+                            title="Siyahı Görünüşü"
                         >
                             <LayoutList className="w-4 h-4" />
                         </button>
                         <button 
                             onClick={() => setViewMode('folder')}
                             className={`p-1.5 rounded-lg transition-all ${viewMode === 'folder' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
-                            title="Folder View"
+                            title="Qovluq Görünüşü"
                         >
                             <Folder className="w-4 h-4" />
                         </button>
@@ -558,7 +562,7 @@ export const Tasks: React.FC = () => {
                         onClick={fetchUsersAndTasks}
                         disabled={loading}
                         className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all group disabled:opacity-50"
-                        title="Refresh Registry"
+                        title="Reyestri Yenilə"
                     >
                         <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
                     </button>
@@ -566,7 +570,7 @@ export const Tasks: React.FC = () => {
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input 
                             type="text" 
-                            placeholder="Search tasks..." 
+                            placeholder="Axtar..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="bg-white border border-zinc-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all w-full md:w-64"
@@ -579,7 +583,7 @@ export const Tasks: React.FC = () => {
                         }}
                         className="btn-primary flex items-center gap-2 whitespace-nowrap"
                     >
-                        <Plus className="w-4 h-4" /> New Objective
+                        <Plus className="w-4 h-4" /> Yeni Tapşırıq
                     </button>
                 </div>
             </div>
@@ -591,11 +595,11 @@ export const Tasks: React.FC = () => {
                             <thead>
                                 <tr className="bg-zinc-50 border-b border-zinc-200">
                                     <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">UID</th>
-                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Task Information</th>
-                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Assignee</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Tapşırıq Məlumatı</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">İycarçı</th>
                                     <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-center">Status</th>
                                     <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Deadline</th>
-                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Actions</th>
+                                    <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Əməliyyatlar</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100">
@@ -604,7 +608,7 @@ export const Tasks: React.FC = () => {
                                         <td colSpan={6} className="px-6 py-12 text-center">
                                             <div className="flex flex-col items-center gap-4">
                                                 <RefreshCcw className="w-5 h-5 animate-spin text-zinc-400" />
-                                                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Synchronizing registry...</span>
+                                                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400">Reyestr Sinxronlaşdırılır...</span>
                                             </div>
                                         </td>
                                     </tr>
@@ -643,7 +647,11 @@ export const Tasks: React.FC = () => {
                                                         task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                         'bg-white text-zinc-400 border-zinc-100'
                                                     }`}>
-                                                        {isOverdue ? 'CRITICAL / OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
+                                                        {isOverdue ? 'KRİTİK / GECİKİB' : 
+                                                            task.status === TaskStatus.COMPLETED ? 'TAMAMLANDI' :
+                                                            task.status === TaskStatus.IN_PROGRESS ? 'İCRADA' :
+                                                            task.status === TaskStatus.TODO ? 'GÖZLƏYİR' : 'GÖZLƏNİLİR'
+                                                        }
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -709,7 +717,7 @@ export const Tasks: React.FC = () => {
                                                 </h3>
                                                 <p className="text-xs text-zinc-400 flex items-center gap-2">
                                                     <Clock className="w-3 h-3" />
-                                                    {group.tasks.length} {group.tasks.length === 1 ? 'Operation' : 'Operations'} Registered
+                                                    {group.tasks.length} {group.tasks.length === 1 ? 'Əməliyyat' : 'Əməliyyat'} Qeydə Alınıb
                                                 </p>
                                             </div>
                                         </div>
@@ -763,7 +771,11 @@ export const Tasks: React.FC = () => {
                                                                     task.status === TaskStatus.PENDING ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                                     'bg-white text-zinc-400 border-zinc-100'
                                                                 }`}>
-                                                                    {isOverdue ? 'OVERDUE' : (task.status || 'PENDING').replace('_', ' ')}
+                                                                    {isOverdue ? 'GECİKİB' : 
+                                                                        task.status === TaskStatus.COMPLETED ? 'TAMAMLANDI' :
+                                                                        task.status === TaskStatus.IN_PROGRESS ? 'İCRADA' :
+                                                                        task.status === TaskStatus.TODO ? 'GÖZLƏYİR' : 'GÖZLƏNİLİR'
+                                                                    }
                                                                 </span>
                                                                 <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-900 transition-colors" />
                                                             </div>

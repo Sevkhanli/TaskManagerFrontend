@@ -22,10 +22,10 @@ export const Login: React.FC = () => {
                         </div>
                         
                         <h2 className="text-4xl lg:text-5xl font-black leading-none tracking-tighter mb-8">
-                            Enterprise <br/>Management <br/><span className="text-zinc-500">Protocol.</span>
+                            Müəssisə <br/>İdarəetmə <br/><span className="text-zinc-500">Protokolu.</span>
                         </h2>
                         <p className="text-zinc-400 text-lg max-w-xs font-medium leading-relaxed">
-                            A unified system for high-performance teams, tracking every task and every violation.
+                            Yüksək performanslı komandalar üçün hər bir tapşırığı və mənfi halı izləyən vahid sistem.
                         </p>
                     </div>
 
@@ -38,8 +38,8 @@ export const Login: React.FC = () => {
                 {/* Right side: Portal Options */}
                 <div className="p-8 lg:p-16 flex flex-col justify-center bg-white">
                     <div className="mb-12">
-                        <h3 className="text-3xl font-black text-zinc-900 tracking-tighter mb-2">System Access</h3>
-                        <p className="text-zinc-500 font-medium">Select your gateway to the administration panel.</p>
+                        <h3 className="text-3xl font-black text-zinc-900 tracking-tighter mb-2">Sistemə Giriş</h3>
+                        <p className="text-zinc-500 font-medium">İdarəetmə panelinə keçid üsulunu seçin.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -55,7 +55,7 @@ export const Login: React.FC = () => {
                                 </div>
                                 <div className="text-left">
                                     <p className="text-sm font-black uppercase tracking-widest">Super Admin</p>
-                                    <p className="text-xs text-zinc-500 font-medium">Root Access & Governance</p>
+                                    <p className="text-xs text-zinc-500 font-medium">Kök Giriş və İdarəetmə</p>
                                 </div>
                             </div>
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -66,7 +66,7 @@ export const Login: React.FC = () => {
                                 <div className="w-full border-t border-zinc-100"></div>
                             </div>
                             <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">
-                                <span className="bg-white px-4">Direct Entry</span>
+                                <span className="bg-white px-4">Birbaşa Giriş</span>
                             </div>
                         </div>
 
@@ -81,8 +81,8 @@ export const Login: React.FC = () => {
                                     <UserIcon className="w-6 h-6 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="text-sm font-black uppercase tracking-widest">Standard User</p>
-                                    <p className="text-xs text-zinc-400 font-medium">Task Matrix & Personal Ledger</p>
+                                    <p className="text-sm font-black uppercase tracking-widest">Standart İstifadəçi</p>
+                                    <p className="text-xs text-zinc-400 font-medium">Tapşırıq Matrisi və Şəxsi Hesablar</p>
                                 </div>
                             </div>
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

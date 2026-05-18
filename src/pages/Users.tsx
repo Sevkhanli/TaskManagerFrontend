@@ -3,6 +3,7 @@ import { UserPlus, Search, Mail, Shield, User as UserIcon, Trash2, Edit3, Key, M
 import { User, UserRole, UserPenaltyStats } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { authApi, penaltyApi } from '../api';
+import { useNotification } from '../contexts/NotificationContext';
 
 const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userId, onClose }) => {
     const [summary, setSummary] = useState<UserPenaltyStats | null>(null);
@@ -112,6 +113,7 @@ const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userI
 };
 
 export const Users: React.FC = () => {
+    const { notify } = useNotification();
     const [isAddingUser, setIsAddingUser] = useState(false);
     const [selectedUserForSummary, setSelectedUserForSummary] = useState<string | null>(null);
     const [users, setUsers] = useState<User[]>([]);
@@ -166,7 +168,7 @@ export const Users: React.FC = () => {
         e.preventDefault();
         
         if (form.password !== form.confirmPassword) {
-            alert('Passwords do not match.');
+            notify('error', 'Xəta', 'Şifrələr uyğun gəlmir.');
             return;
         }
 
@@ -184,15 +186,16 @@ export const Users: React.FC = () => {
                 console.log('[Users] Account provisioned successfully:', response.message);
                 setIsAddingUser(false);
                 setForm({ fullName: '', email: '', role: UserRole.USER, password: '', confirmPassword: '' });
+                notify('success', 'Hesab Yaradıldı', 'Yeni əməkdaş hesabı uğurla yaradıldı.');
                 // Refresh the list to show the new user
                 await fetchUsers();
             } else {
-                alert(response.message || 'Failed to create user.');
+                notify('error', 'Xəta', response.message || 'İstifadəçi yaradıla bilmədi.');
             }
         } catch (err: any) {
             console.error('[Users] Creation error:', err);
-            const msg = err.response?.data?.message || 'Connection error during provisioning.';
-            alert(msg);
+            const msg = err.response?.data?.message || 'Şəbəkə xətası baş verdi.';
+            notify('error', 'Xəta', msg);
         } finally {
             setSubmitting(false);
         }
@@ -202,14 +205,14 @@ export const Users: React.FC = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <header>
-                    <h2 className="text-3xl font-bold tracking-tight">Staff Registry</h2>
-                    <p className="text-zinc-500">Live operational directory synchronized with backend database.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">Əməkdaş Reyestri</h2>
+                    <p className="text-zinc-500">Bazadan gələn canlı əməliyyat kataloqu.</p>
                 </header>
                 <button 
                     onClick={() => setIsAddingUser(true)}
                     className="btn-primary flex items-center gap-2"
                 >
-                    <UserPlus className="w-4 h-4" /> Provision New Account
+                    <UserPlus className="w-4 h-4" /> Yeni Hesab Yarat
                 </button>
             </div>
 
@@ -224,42 +227,42 @@ export const Users: React.FC = () => {
                         <form onSubmit={handleAddUser} className="card p-8 bg-zinc-900 text-white mb-6 grid gap-6">
                             <div className="grid md:grid-cols-3 gap-6">
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Legal Full Name</label>
+                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Tam Adı</label>
                                     <input 
                                         required
                                         type="text" 
                                         value={form.fullName}
                                         onChange={e => setForm({...form, fullName: e.target.value})}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-white/20"
-                                        placeholder="Enter legal name..." 
+                                        placeholder="Ad Soyad..." 
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Corporate Email Address</label>
+                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Korporativ Email</label>
                                     <input 
                                         required
                                         type="email" 
                                         value={form.email}
                                         onChange={e => setForm({...form, email: e.target.value})}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-white/20" 
-                                        placeholder="email@company.pro"
+                                        placeholder="email@company.az"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Operational Role</label>
+                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Əməliyyat Rolu</label>
                                     <select 
                                         value={form.role}
                                         onChange={e => setForm({...form, role: e.target.value as UserRole})}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-white/20 ring-zinc-800"
                                     >
-                                        <option value={UserRole.USER} className="bg-zinc-900">Standard Operative</option>
+                                        <option value={UserRole.USER} className="bg-zinc-900">Standart İstifadəçi</option>
                                         <option value={UserRole.SUPER_ADMIN} className="bg-zinc-900">Super Admin (Root)</option>
                                     </select>
                                 </div>
                             </div>
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Access Key (Password)</label>
+                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Şifrə (Access Key)</label>
                                     <input 
                                         required
                                         type="password" 
@@ -270,7 +273,7 @@ export const Users: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Confirm Access Key</label>
+                                    <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Şifrəni Təsdiqlə</label>
                                     <input 
                                         required
                                         type="password" 
@@ -282,9 +285,9 @@ export const Users: React.FC = () => {
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-6 border-t border-white/5">
-                                <button type="button" onClick={() => setIsAddingUser(false)} className="px-6 py-2 rounded-xl text-zinc-400 hover:text-white transition-colors" disabled={submitting}>Cancel</button>
+                                <button type="button" onClick={() => setIsAddingUser(false)} className="px-6 py-2 rounded-xl text-zinc-400 hover:text-white transition-colors" disabled={submitting}>Ləğv Et</button>
                                 <button type="submit" className="bg-white text-zinc-900 px-8 py-2 rounded-xl font-bold hover:bg-zinc-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" disabled={submitting}>
-                                    {submitting ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Initializing...</> : 'Initialize Account'}
+                                    {submitting ? <><RefreshCcw className="w-4 h-4 animate-spin" /> Hazırlanır...</> : 'Hesabı Aktivləşdir'}
                                 </button>
                             </div>
                         </form>
@@ -303,11 +306,11 @@ export const Users: React.FC = () => {
                 <table className="w-full text-sm text-left border-collapse">
                     <thead>
                         <tr className="bg-zinc-50 border-b border-zinc-200">
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Operative</th>
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Security Clearance</th>
+                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Əməkdaş</th>
+                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Təhlükəsizlik İcazəsi</th>
                             <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-center">Status</th>
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Created At</th>
-                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Settings</th>
+                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400">Yaranma Tarixi</th>
+                            <th className="px-6 py-4 font-mono text-[10px] uppercase tracking-widest text-zinc-400 text-right">Ayarlar</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
@@ -351,14 +354,14 @@ export const Users: React.FC = () => {
                                                 <UserIcon className="w-3 h-3 text-zinc-400" />
                                             )}
                                             <span className={`text-[10px] font-black uppercase tracking-widest ${u.role === UserRole.SUPER_ADMIN ? 'text-red-600' : 'text-zinc-600'}`}>
-                                                {u.role === UserRole.SUPER_ADMIN ? 'Critical Access / ROOT' : 'Standard Clearance'}
+                                                {u.role === UserRole.SUPER_ADMIN ? 'Kritik Giriş / ROOT' : 'Standart İcazə'}
                                             </span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-green-700 text-[10px] font-bold">
                                             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                            ACTIVE
+                                            AKTİV
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-zinc-500 font-mono text-[11px]">{u.createdAt?.split('T')[0]}</td>

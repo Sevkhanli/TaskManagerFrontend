@@ -31,7 +31,7 @@ export const UserLogin: React.FC = () => {
             }, 50);
         } catch (err: any) {
             console.error('[UserLogin] Login error:', err);
-            setError(err.message || 'Login Failed: Please check your email and password.');
+            setError(err.message || 'Giriş uğursuz oldu: Zəhmət olmasa email və şifrəni yoxlayın.');
         } finally {
             setLoading(false);
             console.log('[UserLogin] Login flow concluded');
@@ -43,7 +43,7 @@ export const UserLogin: React.FC = () => {
             <div className="w-full max-w-md">
                 <Link to="/login" className="inline-flex items-center gap-2 text-zinc-400 hover:text-zinc-900 transition-colors mb-8 group">
                     <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-bold uppercase tracking-widest">Back to Portal</span>
+                    <span className="text-sm font-bold uppercase tracking-widest">Portala Qayıt</span>
                 </Link>
 
                 <motion.div 
@@ -58,12 +58,12 @@ export const UserLogin: React.FC = () => {
                             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
                                 <CheckSquare className="w-6 h-6 text-white" />
                             </div>
-                            <span className="font-bold text-2xl tracking-tighter text-zinc-900">Staff<span className="text-zinc-400">Portal</span></span>
+                            <span className="font-bold text-2xl tracking-tighter text-zinc-900">İşçi<span className="text-zinc-400">Portalı</span></span>
                         </div>
 
                         <header className="mb-8">
-                            <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Welcome Back</h2>
-                            <p className="text-zinc-500 text-sm mt-1">Access your assignments and track goals.</p>
+                            <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Xoş Gəlmisiniz</h2>
+                            <p className="text-zinc-500 text-sm mt-1">Tapşırıqlarınıza daxil olun və hədəfləri izləyin.</p>
                         </header>
 
                         <form onSubmit={handleLogin} className="space-y-5">
@@ -77,7 +77,7 @@ export const UserLogin: React.FC = () => {
                                 </motion.div>
                             )}
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Work Email</label>
+                                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">İş Emaili</label>
                                 <div className="relative">
                                     <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                                     <input 
@@ -86,13 +86,13 @@ export const UserLogin: React.FC = () => {
                                         value={credentials.email}
                                         onChange={e => setCredentials({...credentials, email: e.target.value})}
                                         className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl pl-12 pr-4 py-4 text-zinc-900 focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all placeholder:text-zinc-300"
-                                        placeholder="your.email@company.com"
+                                        placeholder="email@company.az"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Password</label>
+                                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Şifrə</label>
                                 <div className="relative">
                                     <Lock className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                                     <input 
@@ -111,7 +111,7 @@ export const UserLogin: React.FC = () => {
                                 disabled={loading}
                                 className="w-full bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all mt-4 flex items-center justify-center gap-2 group disabled:opacity-50"
                             >
-                                {loading ? 'Signing in...' : 'Enter Dashboard'}
+                                {loading ? 'Giriş edilir...' : 'Panelə Daxil Ol'}
                                 {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /> }
                             </button>
                         </form>

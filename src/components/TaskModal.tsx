@@ -117,11 +117,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50 shrink-0">
                         <div>
                             <h3 className="text-xl font-bold text-zinc-900">
-                                {isEditing ? 'Modify Task Details' : 'Launch New Task'}
+                                {isEditing ? 'Tapşırıq Məlumatlarını Dəyiş' : 'Yeni Tapşırıq Başlat'}
                             </h3>
                             {isTaskAssignedByAdmin && !isAdmin && (
                                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mt-1">
-                                    Operational Order: Only Status Feedback Allowed
+                                    Əməliyyat Əmri: Yalnız Status Rəyi İcazəlidir
                                 </p>
                             )}
                         </div>
@@ -134,14 +134,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         {/* Title Field */}
                         <div>
                             <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">
-                                <Type className="w-3 h-3" /> Task Title
+                                <Type className="w-3 h-3" /> Tapşırıq Başlığı
                             </label>
                             <input 
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 disabled={!canEditMetadata}
-                                placeholder="Task title..."
+                                placeholder="Tapşırıq başlığı..."
                                 className="input-field disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed"
                             />
                         </div>
@@ -149,13 +149,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         {/* Description Field */}
                         <div>
                             <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">
-                                <AlignLeft className="w-3 h-3" /> Description
+                                <AlignLeft className="w-3 h-3" /> Təsvir
                             </label>
                             <textarea 
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 disabled={!canEditMetadata}
-                                placeholder="Describe the task..."
+                                placeholder="Tapşırığı təsvir edin..."
                                 rows={3}
                                 className="input-field resize-none py-3 disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed"
                             />
@@ -198,7 +198,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                         {isAdmin && !isEditing && (
                             <div>
                                 <label className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">
-                                    <UserIcon className="w-3 h-3" /> Assignment Scope
+                                    <UserIcon className="w-3 h-3" /> Tapşırıq Sahəsi (Scope)
                                 </label>
                                 <div className="flex bg-zinc-100 p-1 rounded-xl mb-4">
                                     <button 
@@ -206,14 +206,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                         onClick={() => setAssignmentType('user')}
                                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${assignmentType === 'user' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
                                     >
-                                        Individual User
+                                        Fərdi İstifadəçi
                                     </button>
                                     <button 
                                         type="button"
                                         onClick={() => setAssignmentType('role')}
                                         className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${assignmentType === 'role' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
                                     >
-                                        Department Role
+                                        Departament Rolu
                                     </button>
                                 </div>
 
@@ -234,13 +234,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                             onChange={(e) => setRoleName(e.target.value)}
                                             className="input-field"
                                         >
-                                            <option value="ROLE_SATIS">ROLE_SATIS (Sales)</option>
-                                            <option value="ROLE_TEKNIK">ROLE_TEKNIK (Technical)</option>
+                                            <option value="ROLE_SATIS">ROLE_SATIS (Satış)</option>
+                                            <option value="ROLE_TEKNIK">ROLE_TEKNIK (Texniki)</option>
                                             <option value="ROLE_ADMIN">ROLE_ADMIN (Admin)</option>
-                                            <option value="ROLE_USER">ROLE_USER (General User)</option>
+                                            <option value="ROLE_USER">ROLE_USER (Ümumi İstifadəçi)</option>
                                         </select>
                                         <p className="text-[10px] text-zinc-400 font-mono italic">
-                                            Note: This will create separate tasks for every user belonging to this registry group.
+                                            Qeyd: Bu, bu qrupdakı hər bir istifadəçi üçün ayrıca tapşırıq yaradacaqdır.
                                         </p>
                                     </div>
                                 )}
@@ -280,22 +280,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             >
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Completion Report Required</h4>
+                                    <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Tamamlama Hesabatı Tələb Olunur</h4>
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Detailed Report</label>
+                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Ətraflı Hesabat</label>
                                     <textarea 
                                         value={completionDescription}
                                         onChange={(e) => setCompletionDescription(e.target.value)}
-                                        placeholder="What exactly was finalized?"
+                                        placeholder="Tam olaraq nə yekunlaşdırıldı?"
                                         rows={2}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xs text-white"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Evidence Link (Git/Doc)</label>
+                                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Sübut Linki (Git/Doc)</label>
                                     <input 
                                         type="text"
                                         value={evidenceLink}
@@ -306,7 +306,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 </div>
                                 
                                 <p className="text-[10px] text-zinc-500 italic">
-                                    Note: System will validate deadline integrity and apply late penalties if applicable.
+                                    Qeyd: Sistem deadline bütövlüyünü yoxlayacaq və lazım gəldikdə gecikmə cərimələri tətbiq edəcəkdir.
                                 </p>
                             </motion.div>
                         )}
@@ -325,7 +325,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                             )}
                         </div>
                         <div className="flex gap-3">
-                            <button onClick={onClose} className="btn-secondary" disabled={loading}>Cancel</button>
+                            <button onClick={onClose} className="btn-secondary" disabled={loading}>Ləğv Et</button>
                             <button 
                                 onClick={() => onSave({ 
                                     title, 
@@ -341,9 +341,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                 disabled={loading}
                             >
                                 {loading ? (
-                                    <><RefreshCcw className="w-4 h-4 animate-spin" /> Synchronizing...</>
+                                    <><RefreshCcw className="w-4 h-4 animate-spin" /> Sinxronlaşdırılır...</>
                                 ) : (
-                                    isEditing ? (isCompleting ? 'Finalize Mission' : 'Update Task') : 'Create Task'
+                                    isEditing ? (isCompleting ? 'Missiyanı Yekunlaşdır' : 'Tapşırığı Yenilə') : 'Tapşırıq Yarat'
                                 )}
                             </button>
                         </div>
