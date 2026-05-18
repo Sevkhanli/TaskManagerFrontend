@@ -60,8 +60,9 @@ export const Settings: React.FC = () => {
     };
 
     const updateConfigField = (field: keyof PenaltyConfig, value: string) => {
-        const numValue = parseFloat(value) || 0;
-        setConfig(prev => ({ ...prev, [field]: numValue }));
+        // Parse the value carefully to avoid leading zeros and NaN
+        const numValue = value === '' ? 0 : parseInt(value, 10);
+        setConfig(prev => ({ ...prev, [field]: isNaN(numValue) ? 0 : numValue }));
     };
 
     if (loading) {
@@ -80,7 +81,7 @@ export const Settings: React.FC = () => {
                 <p className="text-zinc-500 italic">Akademiya üçün qlobal parametrləri və əməliyyat hədlərini dəyişdirin.</p>
             </header>
             
-            <div className="grid lg:grid-cols-2 gap-8">
+            <div className="max-w-xl">
                 {/* Penalty Logic Section */}
                 <section className="space-y-6">
                     <div className="flex items-center gap-3 mb-2">
@@ -97,8 +98,9 @@ export const Settings: React.FC = () => {
                                 <div className="flex items-center gap-4">
                                     <input 
                                         type="number" 
-                                        value={config.deadlineMissedAmount} 
+                                        value={config.deadlineMissedAmount === 0 ? '' : config.deadlineMissedAmount} 
                                         onChange={(e) => updateConfigField('deadlineMissedAmount', e.target.value)}
+                                        placeholder="0"
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
                                     />
                                     <span className="text-zinc-500 font-bold">{config.currency}</span>
@@ -110,8 +112,9 @@ export const Settings: React.FC = () => {
                                 <div className="flex items-center gap-4">
                                     <input 
                                         type="number" 
-                                        value={config.statusNotCompletedAmount} 
+                                        value={config.statusNotCompletedAmount === 0 ? '' : config.statusNotCompletedAmount} 
                                         onChange={(e) => updateConfigField('statusNotCompletedAmount', e.target.value)}
+                                        placeholder="0"
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
                                     />
                                     <span className="text-zinc-500 font-bold">{config.currency}</span>
@@ -123,8 +126,9 @@ export const Settings: React.FC = () => {
                                 <div className="flex items-center gap-4">
                                     <input 
                                         type="number" 
-                                        value={config.falseCompletionAmount} 
+                                        value={config.falseCompletionAmount === 0 ? '' : config.falseCompletionAmount} 
                                         onChange={(e) => updateConfigField('falseCompletionAmount', e.target.value)}
+                                        placeholder="0"
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-hidden focus:ring-1 focus:ring-zinc-400 font-mono text-xl" 
                                     />
                                     <span className="text-zinc-500 font-bold">{config.currency}</span>
@@ -147,61 +151,8 @@ export const Settings: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </section>
 
-                {/* Infrastructure Section */}
-                <section className="space-y-6">
-                    <div className="flex items-center gap-3 mb-2">
-                        <Database className="w-5 h-5 text-zinc-400" />
-                        <h3 className="font-bold text-lg text-zinc-600">Əməliyyat Bütövlüyü</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="card p-6 flex items-center justify-between hover:border-zinc-300 transition-colors cursor-pointer group">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-zinc-50 rounded-xl group-hover:bg-zinc-100 transition-colors">
-                                    <Zap className="w-5 h-5 text-zinc-400" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm">Avtomatlaşdırılmış Uzlaşma</p>
-                                    <p className="text-xs text-zinc-400">Gecikmiş tapşırıqlar üçün gecəlik yoxlamalar.</p>
-                                </div>
-                            </div>
-                            <div className="w-10 h-5 bg-zinc-900 rounded-full relative">
-                                <div className="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                            </div>
-                        </div>
-
-                        <div className="card p-6 flex items-center justify-between hover:border-zinc-300 transition-colors cursor-pointer group text-zinc-400 italic">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-zinc-50 rounded-xl">
-                                    <Lock className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm">Ciddi Kimlik Doğrulaması</p>
-                                    <p className="text-xs">Səlahiyyətli giriş üçün biometrik tələb olunur.</p>
-                                </div>
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-tighter">Yalnız Müəssisə</span>
-                        </div>
-
-                        <div className="card p-6 flex items-center justify-between hover:border-zinc-300 transition-colors cursor-pointer group">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-zinc-50 rounded-xl group-hover:bg-zinc-100 transition-colors">
-                                    <BellRing className="w-5 h-5 text-zinc-900 animate-pulse" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm">Təcili Xəbərdarlıq Vektoru</p>
-                                    <p className="text-xs text-zinc-400">Cərimə verilməsi üçün bildirişlər.</p>
-                                </div>
-                            </div>
-                            <div className="w-10 h-5 bg-zinc-200 rounded-full relative">
-                                <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow-sm"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="p-8 rounded-2xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
+                    <div className="p-8 rounded-2xl bg-zinc-50 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-center mt-8">
                         <History className="w-8 h-8 text-zinc-300 mb-4" />
                         <p className="text-sm font-medium text-zinc-500">Konfiqurasiya Tarixçəsi</p>
                         <p className="text-xs text-zinc-400 mt-1 max-w-[200px]">{lastUpdatedInfo || 'Heç bir son dəyişiklik qeydə alınmayıb.'}</p>
