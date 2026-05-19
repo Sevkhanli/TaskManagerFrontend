@@ -62,8 +62,8 @@ export const Tasks: React.FC = () => {
         const isAdminName = (n: string | null | undefined) => 
             cleanName(n) === 'super admin' || cleanName(n) === 'admin';
         
-        const isCreatorAdmin = isAdminName(res.creatorName) || foundCreator?.role === UserRole.SUPER_ADMIN;
-        const isAssigneeAdmin = isAdminName(res.assigneeName) || foundAssignee?.role === UserRole.SUPER_ADMIN;
+        const isCreatorAdmin = isAdminName(res.creatorName) || foundCreator?.role === UserRole.SUPER_ADMIN || String(foundCreator?.role).includes('ADMIN');
+        const isAssigneeAdmin = isAdminName(res.assigneeName) || foundAssignee?.role === UserRole.SUPER_ADMIN || String(foundAssignee?.role).includes('ADMIN');
 
         // Best effort ID mapping
         const getMappedId = (name: string, foundUser: User | undefined, isAdminRole: boolean) => {
@@ -85,14 +85,16 @@ export const Tasks: React.FC = () => {
                 id: getMappedId(res.creatorName, foundCreator, isCreatorAdmin),
                 fullName: res.creatorName || 'Unknown', 
                 email: '', 
-                role: isCreatorAdmin ? UserRole.SUPER_ADMIN : UserRole.USER, 
+                role: foundCreator?.role || (isCreatorAdmin ? UserRole.SUPER_ADMIN : UserRole.USER),
+                roles: foundCreator?.roles || [],
                 createdAt: '' 
             },
             assignee: { 
                 id: getMappedId(res.assigneeName, foundAssignee, isAssigneeAdmin),
                 fullName: res.assigneeName || 'Unknown', 
                 email: '', 
-                role: isAssigneeAdmin ? UserRole.SUPER_ADMIN : UserRole.USER, 
+                role: foundAssignee?.role || (isAssigneeAdmin ? UserRole.SUPER_ADMIN : UserRole.USER),
+                roles: foundAssignee?.roles || [],
                 createdAt: '' 
             },
             isDeleted: false
@@ -178,13 +180,19 @@ export const Tasks: React.FC = () => {
         await fetchTasks(currentUsers.length > 0 ? currentUsers : allUsers);
     };
 
+    // Stability helpers for useEffect dependencies
+    const userId = user?.id;
+    const userFullName = user?.fullName;
+    const userEmail = user?.email;
+    const userContextReady = !!user;
+
     useEffect(() => {
-        console.log('[Tasks] Effect triggered. User Context Ready:', !!user, 'Name:', user?.fullName, 'View:', viewMode);
+        console.log('[Tasks] Effect triggered. User Context Ready:', userContextReady, 'Name:', userFullName, 'View:', viewMode);
         const token = localStorage.getItem('tf_access_token');
-        if (token || user) {
+        if (token || userContextReady) {
             fetchUsersAndTasks();
         }
-    }, [user?.id, user?.fullName, isAdmin, viewMode]);
+    }, [userId, userContextReady, isAdmin, viewMode]);
 
     if (!user) {
         return (
@@ -417,33 +425,54 @@ export const Tasks: React.FC = () => {
 
     // Synchronize grouped tasks for search/folders UI based on flat tasks list
     useEffect(() => {
+        console.log('[Tasks] Grouping effect triggered. Role:', selectedRole, 'Search:', searchQuery);
+        
         const query = searchQuery.toLowerCase().trim();
-        const filterTask = (t: Task) => {
-            const titleMatch = (t.title || '').toLowerCase().includes(query);
-            const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
-            const matchesSearch = titleMatch || assigneeMatch;
-            
-            // Apply role filter if selected
-            const matchesRole = !selectedRole || (t.assignee?.role === selectedRole);
-            
-            if (isAdmin) return matchesSearch && matchesRole;
-            
-            const myNameRaw = (user?.fullName || '').toLowerCase().trim();
-            const myEmailRaw = (user?.email || '').toLowerCase().trim();
+        
+        const isUserAuthorizedForTask = (t: Task) => {
+            if (isAdmin) return true;
+            const myNameRaw = (userFullName || '').toLowerCase().trim();
+            const myEmailRaw = (userEmail || '').toLowerCase().trim();
             const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
             const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
             
-            const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
-            const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
+            return assigneeName === myNameRaw || assigneeName === myEmailRaw || creatorName === myNameRaw || creatorName === myEmailRaw;
+        };
+
+        const filterTask = (task: Task) => {
+            // 1. Search Query Filter
+            const titleMatch = (task.title || '').toLowerCase().includes(query);
+            const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
+            const matchesSearch = titleMatch || assigneeMatch;
+
+            if (!matchesSearch) return false;
+
+            // 2. Authorization Filter
+            if (!isUserAuthorizedForTask(task)) return false;
+
+            // 3. Department (Role) Filter
+            // Əgər 'BÜTÜN ROLLAR' seçilibsə (ALL və ya boşdursa), filtri keç
+            if (!selectedRole || selectedRole === 'ALL' || selectedRole === '') return true;
+
+            // Əgər taskın icraçısı və ya rolu yoxdursa, siyahıdan çıxar
+            const executor = task.assignee;
+            if (!executor || !executor.roles || executor.roles.length === 0) return false;
+
+            // İcraçının bazadan gələn real rolunu təmizləyirik (Məsələn: 'ROLE_SATIS' -> 'SATIS')
+            const userRoleClean = executor.roles[0].name.replace("ROLE_", "").toUpperCase();
             
-            return matchesSearch && (isAssignedToMe || isCreatedByMe);
+            // Filterdən seçilən rolu təmizləyirik (selectedRole may be 'SATIS' or 'ROLE_SATIS')
+            const filterRoleClean = selectedRole.replace("ROLE_", "").toUpperCase();
+
+            // Müqayisə: İstifadəçinin şəxsi adı nə olur olsun, rolu filterlə eynidirsə göstər
+            return userRoleClean === filterRoleClean;
         };
 
         const grouped = tasks.reduce((acc: GroupedTask[], task) => {
             if (!filterTask(task)) return acc;
             
-            // Backend grouping fallback
-            const date = (task.deadline || '').split('T')[0];
+            // Grouping by date
+            const date = (task.deadline || '').split('T')[0] || 'Unknown';
             const existingGroup = acc.find(g => g.date === date);
             
             if (existingGroup) {
@@ -460,28 +489,43 @@ export const Tasks: React.FC = () => {
         if (openFolders.length === 0 && grouped.length > 0) {
             setOpenFolders([grouped[0].date]);
         }
-    }, [tasks, searchQuery, user?.id, isAdmin, user?.fullName, user?.email]);
+    }, [tasks, searchQuery, selectedRole, isAdmin, userId, userFullName, userEmail]);
 
-    const filteredTasks = tasks.filter(t => {
+    // Use memoized filtered tasks for list view to keep it consistent
+    const filteredTasks = React.useMemo(() => {
         const query = searchQuery.toLowerCase().trim();
-        const titleMatch = (t.title || '').toLowerCase().includes(query);
-        const assigneeMatch = (t.assignee?.fullName || '').toLowerCase().includes(query);
-        const matchesSearch = titleMatch || assigneeMatch;
         
-        const matchesRole = !selectedRole || (t.assignee?.role === selectedRole);
-        
-        if (isAdmin) return matchesSearch && matchesRole;
-        
-        const myNameRaw = (user?.fullName || '').toLowerCase().trim();
-        const myEmailRaw = (user?.email || '').toLowerCase().trim();
-        const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
-        const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
-        
-        const isAssignedToMe = assigneeName === myNameRaw || assigneeName === myEmailRaw;
-        const isCreatedByMe = creatorName === myNameRaw || creatorName === myEmailRaw;
- 
-        return matchesSearch && (isAssignedToMe || isCreatedByMe);
-    });
+        const isUserAuthorizedForTask = (t: Task) => {
+            if (isAdmin) return true;
+            const myNameRaw = (userFullName || '').toLowerCase().trim();
+            const myEmailRaw = (userEmail || '').toLowerCase().trim();
+            const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
+            const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
+            
+            return assigneeName === myNameRaw || assigneeName === myEmailRaw || creatorName === myNameRaw || creatorName === myEmailRaw;
+        };
+
+        return tasks.filter(task => {
+            // 1. Search Match
+            const titleMatch = (task.title || '').toLowerCase().includes(query);
+            const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
+            const matchesSearch = titleMatch || assigneeMatch;
+            if (!matchesSearch) return false;
+
+            // 2. Authorization
+            if (!isUserAuthorizedForTask(task)) return false;
+
+            // 3. Role Filter
+            if (!selectedRole || selectedRole === 'ALL' || selectedRole === '') return true;
+            const executor = task.assignee;
+            if (!executor || !executor.roles || executor.roles.length === 0) return false;
+
+            const userRoleClean = executor.roles[0].name.replace("ROLE_", "").toUpperCase();
+            const filterRoleClean = selectedRole.replace("ROLE_", "").toUpperCase();
+
+            return userRoleClean === filterRoleClean;
+        });
+    }, [tasks, searchQuery, selectedRole, isAdmin, userId, userFullName, userEmail]);
 
     const filteredGroupedTasks = groupedTasks;
 
@@ -559,10 +603,24 @@ export const Tasks: React.FC = () => {
 
     const filteredRoles = React.useMemo(() => {
         const query = roleSearchQuery.toLowerCase().trim();
-        const roles = Array.from(new Set(['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER', ...dbRoles])).filter(Boolean).sort();
-        if (!query) return roles;
-        return roles.filter(role => role.toLowerCase().includes(query));
+        
+        // Normalize roles: remove ROLE_ prefix, uppercase, and unique
+        const normalize = (r: string) => String(r).toUpperCase().replace(/^ROLE_/, '').trim();
+        
+        const allRolesRaw = dbRoles.length > 0 ? dbRoles : ['SUPER_ADMIN', 'ADMIN', 'SATIS', 'KOORDINATOR', 'USER'];
+        const uniqueNormalizedRoles = Array.from(new Set(allRolesRaw.map(normalize))).filter(Boolean).sort();
+        
+        if (!query) return uniqueNormalizedRoles;
+        return uniqueNormalizedRoles.filter((role: string) => role.toLowerCase().includes(query));
     }, [dbRoles, roleSearchQuery]);
+
+    // When selecting a role for filtering, we might need to match both normalized and original role
+    const handleRoleSelect = (roleName: string) => {
+        const originalRole = dbRoles.find(r => r.replace(/^ROLE_/, '').toUpperCase() === roleName.toUpperCase()) || roleName;
+        setSelectedRole(roleName === '' ? '' : originalRole);
+        setIsRoleMenuOpen(false);
+        setRoleSearchQuery('');
+    };
 
     return (
         <div className="space-y-6">
@@ -599,13 +657,13 @@ export const Tasks: React.FC = () => {
 
                     {isAdmin && (
                         <div className="relative">
-                            <button 
-                                onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
-                            >
-                                <span className="truncate">{selectedRole || 'BÜTÜN ROLLAR'}</span>
-                                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
+                                <button 
+                                    onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
+                                >
+                                    <span className="truncate">{selectedRole ? selectedRole.replace(/^ROLE_/, '').toUpperCase() : 'BÜTÜN ROLLAR'}</span>
+                                    <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
 
                             <AnimatePresence>
                                 {isRoleMenuOpen && (
@@ -635,30 +693,25 @@ export const Tasks: React.FC = () => {
                                             </div>
                                             <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                                 <button 
-                                                    onClick={() => {
-                                                        setSelectedRole('');
-                                                        setIsRoleMenuOpen(false);
-                                                        setRoleSearchQuery('');
-                                                    }}
+                                                    onClick={() => handleRoleSelect('')}
                                                     className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
                                                 >
                                                     BÜTÜN ROLLAR
                                                     {!selectedRole && <Check className="w-3 h-3" />}
                                                 </button>
-                                                {filteredRoles.filter(r => r !== '').map(role => (
-                                                    <button 
-                                                        key={role}
-                                                        onClick={() => {
-                                                            setSelectedRole(role);
-                                                            setIsRoleMenuOpen(false);
-                                                            setRoleSearchQuery('');
-                                                        }}
-                                                        className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${selectedRole === role ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
-                                                    >
-                                                        {role}
-                                                        {selectedRole === role && <Check className="w-3 h-3" />}
-                                                    </button>
-                                                ))}
+                                                {filteredRoles.filter(r => r !== '').map(role => {
+                                                    const isSelected = selectedRole && selectedRole.replace(/^ROLE_/, '').toUpperCase() === role.toUpperCase();
+                                                    return (
+                                                        <button 
+                                                            key={role}
+                                                            onClick={() => handleRoleSelect(role)}
+                                                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${isSelected ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                        >
+                                                            {role}
+                                                            {isSelected && <Check className="w-3 h-3" />}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </motion.div>
                                     </>

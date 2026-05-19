@@ -58,9 +58,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
     // Dynamic Roles from DB
     const availableRoles = React.useMemo(() => {
-        const extractedRolesFromUsers = users.map(u => String(u.role).toUpperCase());
-        const roles = Array.from(new Set([...extractedRolesFromUsers, ...dbRoles])).filter(Boolean).sort();
-        return roles.length > 0 ? roles : ['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER'];
+        // Normalize helper
+        const normalize = (r: string) => String(r).toUpperCase().replace(/^ROLE_/, '').trim();
+        
+        // Use dbRoles if available, otherwise find roles from current users list
+        const rolesList = dbRoles.length > 0 ? dbRoles : Array.from(new Set(users.map(u => String(u.role)))).filter(Boolean);
+        
+        // Return sorted roles, ensure no duplicates after normalization would be tricky if we want to preserve original for backend
+        // So we keep original names but might filter them
+        return rolesList.filter(Boolean).sort();
     }, [users, dbRoles]);
 
     // Fetch Roles from API
@@ -357,7 +363,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                                 <input 
                                                     type="text"
                                                     placeholder="Departament axtarın..."
-                                                    value={isRoleMenuOpen ? roleSearchQuery : roleName}
+                                                    value={isRoleMenuOpen ? roleSearchQuery : (roleName ? roleName.replace(/^ROLE_/, '').toUpperCase() : '')}
                                                     onChange={(e) => {
                                                         setRoleSearchQuery(e.target.value);
                                                         setIsRoleMenuOpen(true);
@@ -397,7 +403,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                                                                         }}
                                                                         className={`w-full text-left px-5 py-3 text-xs font-mono uppercase hover:bg-zinc-50 flex items-center justify-between transition-colors ${roleName === r ? 'bg-zinc-50 text-zinc-900 font-bold' : 'text-zinc-600'}`}
                                                                     >
-                                                                        <span>{r}</span>
+                                                                        <span>{r.replace(/^ROLE_/, '').toUpperCase()}</span>
                                                                         {roleName === r && <div className="w-1.5 h-1.5 bg-zinc-900 rounded-full" />}
                                                                     </button>
                                                                 ))

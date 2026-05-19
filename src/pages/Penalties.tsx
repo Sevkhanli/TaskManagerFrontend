@@ -288,10 +288,26 @@ export const Penalties: React.FC = () => {
 
     const filteredRoles = React.useMemo(() => {
         const query = roleSearchQuery.toLowerCase().trim();
-        const roles = Array.from(new Set(['SUPER_ADMIN', 'ADMIN', 'ROLE_SATIS', 'ROLE_USER', ...dbRoles])).filter(Boolean).sort();
-        if (!query) return roles;
-        return roles.filter(role => role.toLowerCase().includes(query));
+        
+        // Normalize roles: remove ROLE_ prefix, uppercase, and unique
+        const normalize = (r: string) => String(r).toUpperCase().replace(/^ROLE_/, '').trim();
+        
+        const allRolesRaw = dbRoles.length > 0 ? dbRoles : ['SUPER_ADMIN', 'ADMIN', 'SATIS', 'KOORDINATOR', 'USER'];
+        const uniqueNormalizedRoles = Array.from(new Set(allRolesRaw.map(normalize))).filter(Boolean).sort();
+        
+        if (!query) return uniqueNormalizedRoles;
+        return uniqueNormalizedRoles.filter((role: string) => role.toLowerCase().includes(query));
     }, [dbRoles, roleSearchQuery]);
+
+    // When selecting a role for API call, we might need to add ROLE_ back if it was in db
+    const handleRoleSelect = (roleName: string) => {
+        // If we want to filter by ROLE_SATIS but only show SATIS, 
+        // we should find the original role from dbRoles if possible
+        const originalRole = dbRoles.find(r => r.replace(/^ROLE_/, '').toUpperCase() === roleName.toUpperCase()) || roleName;
+        setSelectedRole(roleName === '' ? '' : originalRole);
+        setIsRoleMenuOpen(false);
+        setRoleSearchQuery('');
+    };
 
     const getUserDisplayName = (p: any) => {
         if (!p) return 'Naməlum';
@@ -321,7 +337,7 @@ export const Penalties: React.FC = () => {
                                     onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
                                     className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
                                 >
-                                    <span className="truncate">{selectedRole || 'BÜTÜN ROLLAR'}</span>
+                                    <span className="truncate">{selectedRole ? selectedRole.replace(/^ROLE_/, '').toUpperCase() : 'BÜTÜN ROLLAR'}</span>
                                     <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
@@ -353,30 +369,25 @@ export const Penalties: React.FC = () => {
                                                 </div>
                                                 <div className="max-h-60 overflow-y-auto custom-scrollbar">
                                                     <button 
-                                                        onClick={() => {
-                                                            setSelectedRole('');
-                                                            setIsRoleMenuOpen(false);
-                                                            setRoleSearchQuery('');
-                                                        }}
+                                                        onClick={() => handleRoleSelect('')}
                                                         className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
                                                     >
                                                         BÜTÜN ROLLAR
                                                         {!selectedRole && <Check className="w-3 h-3" />}
                                                     </button>
-                                                    {filteredRoles.filter(r => r !== '').map(role => (
-                                                        <button 
-                                                            key={role}
-                                                            onClick={() => {
-                                                                setSelectedRole(role);
-                                                                setIsRoleMenuOpen(false);
-                                                                setRoleSearchQuery('');
-                                                            }}
-                                                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${selectedRole === role ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
-                                                        >
-                                                            {role}
-                                                            {selectedRole === role && <Check className="w-3 h-3" />}
-                                                        </button>
-                                                    ))}
+                                                    {filteredRoles.filter(r => r !== '').map(role => {
+                                                        const isSelected = selectedRole && selectedRole.replace(/^ROLE_/, '').toUpperCase() === role.toUpperCase();
+                                                        return (
+                                                            <button 
+                                                                key={role}
+                                                                onClick={() => handleRoleSelect(role)}
+                                                                className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${isSelected ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                            >
+                                                                {role}
+                                                                {isSelected && <Check className="w-3 h-3" />}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </motion.div>
                                         </>
