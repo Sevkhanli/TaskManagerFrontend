@@ -183,10 +183,15 @@ export const tasksApi = {
         const response = await api.put<TaskResponse>(`/api/tasks/admin/${id}`, taskData);
         return response.data;
     },
-    getTasks: async (role?: string): Promise<TaskResponse[]> => {
-        const response = await api.get<TaskResponse[]>('/api/tasks', {
-            params: role && role !== 'ALL' && role !== '' ? { role } : {}
-        });
+    getTasks: async (filters?: { role?: string; status?: string; startDate?: string; endDate?: string }): Promise<TaskResponse[]> => {
+        const params: any = {};
+        if (filters) {
+            if (filters.role && filters.role !== 'ALL') params.role = filters.role;
+            if (filters.status && filters.status !== 'ALL') params.status = filters.status;
+            if (filters.startDate) params.startDate = filters.startDate;
+            if (filters.endDate) params.endDate = filters.endDate;
+        }
+        const response = await api.get<TaskResponse[]>('/api/tasks', { params });
         return response.data;
     },
     updateTaskStatus: async (id: number, status: string, reason: string = 'Status updated via dashboard'): Promise<TaskResponse> => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock, Check } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, RefreshCcw, LayoutList, Folder, ChevronDown, ChevronRight, Calendar as CalendarIcon, Clock, Check, X } from 'lucide-react';
 import { Task, TaskStatus, User, UserRole } from '../types';
 import { TaskModal } from '../components/TaskModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,9 @@ export const Tasks: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRole, setSelectedRole] = useState<string>('');
+    const [selectedStatus, setSelectedStatus] = useState<string>('');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
     const [dbRoles, setDbRoles] = useState<string[]>([]);
     const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
     const [roleSearchQuery, setRoleSearchQuery] = useState('');
@@ -105,7 +108,12 @@ export const Tasks: React.FC = () => {
         setLoading(true);
         try {
             // Always fetch flat tasks to keep the main state updated with server-side filtering
-            const data = await tasksApi.getTasks(selectedRole);
+            const data = await tasksApi.getTasks({
+                role: selectedRole,
+                status: selectedStatus,
+                startDate: startDate,
+                endDate: endDate
+            });
             const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
             setTasks(mappedTasks);
 
@@ -193,7 +201,7 @@ export const Tasks: React.FC = () => {
         if (token || userContextReady) {
             fetchUsersAndTasks();
         }
-    }, [userContextReady, selectedRole, viewMode]); // Simplified dependencies
+    }, [userContextReady, selectedRole, selectedStatus, startDate, endDate, viewMode]); // Simplified dependencies
 
     if (!user) {
         return (
@@ -593,104 +601,22 @@ export const Tasks: React.FC = () => {
         setRoleSearchQuery('');
     };
 
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSelectedRole('');
+        setSelectedStatus('');
+        setStartDate('');
+        setEndDate('');
+    };
+
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <header>
-                    <h2 className="text-3xl font-bold tracking-tight">Missiya İdarəetmə</h2>
-                    <p className="text-zinc-500">Əməliyyat tapşırıqları və strateji hədəflər.</p>
+                    <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Missiya İdarəetmə</h2>
+                    <p className="text-zinc-500 font-medium">Əməliyyat tapşırıqları və strateji hədəflər.</p>
                 </header>
                 <div className="flex items-center gap-3">
-                    <div className="flex bg-zinc-100 p-1 rounded-xl mr-2">
-                        <button 
-                            onClick={() => setViewMode('list')}
-                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
-                            title="Siyahı Görünüşü"
-                        >
-                            <LayoutList className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => setViewMode('folder')}
-                            className={`p-1.5 rounded-lg transition-all ${viewMode === 'folder' ? 'bg-white shadow-xs text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
-                            title="Qovluq Görünüşü"
-                        >
-                            <Folder className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <button 
-                        onClick={fetchUsersAndTasks}
-                        disabled={loading}
-                        className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition-all group disabled:opacity-50"
-                        title="Reyestri Yenilə"
-                    >
-                        <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-                    </button>
-
-                    {isAdmin && (
-                        <div className="relative">
-                                <button 
-                                    onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[160px]"
-                                >
-                                    <span className="truncate">{selectedRole ? selectedRole.replace(/^ROLE_/, '').toUpperCase() : 'BÜTÜN ROLLAR'}</span>
-                                    <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
-                                </button>
-
-                            <AnimatePresence>
-                                {isRoleMenuOpen && (
-                                    <>
-                                        <div 
-                                            className="fixed inset-0 z-40" 
-                                            onClick={() => setIsRoleMenuOpen(false)}
-                                        />
-                                        <motion.div 
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="absolute right-0 top-full mt-2 w-64 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
-                                        >
-                                            <div className="p-3 border-b border-zinc-100">
-                                                <div className="relative">
-                                                    <Search className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                                                    <input 
-                                                        type="text"
-                                                        value={roleSearchQuery}
-                                                        onChange={(e) => setRoleSearchQuery(e.target.value)}
-                                                        placeholder="Rol axtar..."
-                                                        className="w-full bg-zinc-50 border border-zinc-100 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                                <button 
-                                                    onClick={() => handleRoleSelect('')}
-                                                    className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
-                                                >
-                                                    BÜTÜN ROLLAR
-                                                    {!selectedRole && <Check className="w-3 h-3" />}
-                                                </button>
-                                                {filteredRoles.filter(r => r !== '').map(role => {
-                                                    const isSelected = selectedRole && selectedRole.replace(/^ROLE_/, '').toUpperCase() === role.toUpperCase();
-                                                    return (
-                                                        <button 
-                                                            key={role}
-                                                            onClick={() => handleRoleSelect(role)}
-                                                            className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${isSelected ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
-                                                        >
-                                                            {role}
-                                                            {isSelected && <Check className="w-3 h-3" />}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    </>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    )}
-
                     <div className="relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                         <input 
@@ -698,7 +624,7 @@ export const Tasks: React.FC = () => {
                             placeholder="Axtar..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-white border border-zinc-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all w-full md:w-64"
+                            className="bg-white border border-zinc-200 rounded-xl pl-10 pr-4 py-2 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all w-full md:w-64"
                         />
                     </div>
                     <button 
@@ -706,11 +632,159 @@ export const Tasks: React.FC = () => {
                             setSelectedTask(null);
                             setIsModalOpen(true);
                         }}
-                        className="btn-primary flex items-center gap-2 whitespace-nowrap"
+                        className="btn-primary flex items-center gap-2 whitespace-nowrap shadow-lg shadow-zinc-900/10 transition-transform active:scale-95"
                     >
                         <Plus className="w-4 h-4" /> Yeni Tapşırıq
                     </button>
                 </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded-2xl">
+                <div className="flex bg-white border border-zinc-200 p-1 rounded-xl">
+                    <button 
+                        onClick={() => setViewMode('list')}
+                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900'}`}
+                        title="Siyahı Görünüşü"
+                    >
+                        <LayoutList className="w-4 h-4" />
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('folder')}
+                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'folder' ? 'bg-zinc-900 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900'}`}
+                        title="Qovluq Görünüşü"
+                    >
+                        <Folder className="w-4 h-4" />
+                    </button>
+                </div>
+
+                <div className="h-4 w-px bg-zinc-200 mx-1 hidden sm:block" />
+
+                <button 
+                    onClick={fetchUsersAndTasks}
+                    disabled={loading}
+                    className="p-2.5 bg-white border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 transition-all group disabled:opacity-50"
+                    title="Reyestri Yenilə"
+                >
+                    <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                </button>
+
+                <div className="h-4 w-px bg-zinc-200 mx-1 hidden sm:block" />
+
+                {isAdmin && (
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 shadow-xs hover:border-zinc-300 transition-all min-w-[140px]"
+                        >
+                            <span className="truncate">{selectedRole ? selectedRole.replace(/^ROLE_/, '').toUpperCase() : 'BÜTÜN ROLLAR'}</span>
+                            <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isRoleMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isRoleMenuOpen && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-40" 
+                                        onClick={() => setIsRoleMenuOpen(false)}
+                                    />
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="absolute left-0 top-full mt-2 w-64 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                                    >
+                                        <div className="p-3 border-b border-zinc-100">
+                                            <div className="relative">
+                                                <Search className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                                                <input 
+                                                    type="text"
+                                                    value={roleSearchQuery}
+                                                    onChange={(e) => setRoleSearchQuery(e.target.value)}
+                                                    placeholder="Rol axtar..."
+                                                    className="w-full bg-zinc-50 border border-zinc-100 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                            <button 
+                                                onClick={() => handleRoleSelect('')}
+                                                className={`w-full text-left px-4 py-3 text-[10px] font-bold tracking-widest transition-colors border-b border-zinc-50 flex items-center justify-between ${!selectedRole ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                            >
+                                                BÜTÜN ROLLAR
+                                                {!selectedRole && <Check className="w-3 h-3" />}
+                                            </button>
+                                            {filteredRoles.filter(r => r !== '').map(role => {
+                                                const isSelected = selectedRole && selectedRole.replace(/^ROLE_/, '').toUpperCase() === role.toUpperCase();
+                                                return (
+                                                    <button 
+                                                        key={role}
+                                                        onClick={() => handleRoleSelect(role)}
+                                                        className={`w-full text-left px-4 py-3 text-[10px] font-bold tracking-widest transition-colors border-b border-zinc-50 last:border-0 flex items-center justify-between ${isSelected ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                                                    >
+                                                        {role}
+                                                        {isSelected && <Check className="w-3 h-3" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                    <select 
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 shadow-xs focus:ring-2 focus:ring-zinc-900/5 outline-none appearance-none cursor-pointer pr-10 relative bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%20stroke%3D%22currentColor%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%222%22%20d%3D%22M19%209l-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.5rem_center] bg-no-repeat transition-all hover:border-zinc-300"
+                    >
+                        <option value="">BÜTÜN STATUSLAR</option>
+                        <option value="PENDING">GÖZLƏNİLİR</option>
+                        <option value="IN_PROGRESS">İCRADA</option>
+                        <option value="COMPLETED">TAMAMLANDI</option>
+                        <option value="OVERDUE">GECİKİB</option>
+                        <option value="CANCELLED">LƏĞV EDİLDİ</option>
+                    </select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <CalendarIcon className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                        <input 
+                            type="date" 
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 shadow-xs outline-none focus:ring-2 focus:ring-zinc-900/5 transition-all hover:border-zinc-300"
+                            title="Başlanğıc Tarixi"
+                        />
+                    </div>
+                    <span className="text-zinc-400 font-mono text-[10px]">TO</span>
+                    <div className="relative">
+                        <CalendarIcon className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                        <input 
+                            type="date" 
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="pl-8 pr-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 shadow-xs outline-none focus:ring-2 focus:ring-zinc-900/5 transition-all hover:border-zinc-300"
+                            title="Bitmə Tarixi"
+                        />
+                    </div>
+                </div>
+
+                {(selectedRole || selectedStatus || startDate || endDate) && (
+                    <motion.button 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        onClick={clearFilters}
+                        className="ml-auto p-2 px-3 text-red-500 hover:bg-red-50 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5 border border-red-100"
+                        title="Filtrləri Sıfırla"
+                    >
+                        <X className="w-3.5 h-3.5" /> Sıfırla
+                    </motion.button>
+                )}
             </div>
 
             {viewMode === 'list' ? (
