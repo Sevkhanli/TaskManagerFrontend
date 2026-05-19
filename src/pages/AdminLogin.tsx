@@ -94,7 +94,7 @@ export const AdminLogin: React.FC = () => {
                                         value={credentials.email}
                                         onChange={e => setCredentials({...credentials, email: e.target.value})}
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-hidden focus:ring-1 focus:ring-zinc-400 transition-all placeholder:text-zinc-700"
-                                        placeholder="admin@itbrains.edu.az"
+                                        placeholder="admin@email.az"
                                     />
                                 </div>
                             </div>
@@ -127,7 +127,7 @@ export const AdminLogin: React.FC = () => {
                 </motion.div>
                 
                 <footer className="mt-8 text-center">
-                    <p className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase">System: TaskFlow Pro v2.4.0 / Secured by IT BRAINS</p>
+                    <p className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase">System: IT Brains TaskFlow v2.4.0 / Secured by IT BRAINS</p>
                 </footer>
             </div>
         </div>

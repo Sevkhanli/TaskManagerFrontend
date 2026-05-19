@@ -5,28 +5,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { authApi, penaltyApi } from '../api';
 import { useNotification } from '../contexts/NotificationContext';
 
-const getRoleConfig = (rolesArray?: any[]) => {
-    if (!rolesArray || rolesArray.length === 0) {
-        return { label: 'USER', className: 'text-zinc-600' };
-    }
-    
-    // Find the first non-USER role if possible, otherwise use the first one
-    const primaryRoleObj = rolesArray.find(r => {
-        const n = String(typeof r === 'string' ? r : (r.name || r.authority || '')).toUpperCase();
-        return n !== 'USER' && n !== 'ROLE_USER' && n !== '';
-    }) || rolesArray[0];
-
-    const rawRole = typeof primaryRoleObj === 'string' ? primaryRoleObj : (primaryRoleObj.name || primaryRoleObj.authority || 'USER');
-    const cleanRole = String(rawRole).replace("ROLE_", "").toUpperCase().trim();
-
-    const isAdmin = cleanRole.includes('ADMIN');
-    
-    return { 
-        label: cleanRole || 'USER', 
-        className: isAdmin ? 'text-red-600 font-black' : 'text-zinc-600'
-    };
-};
-
 const SummaryModal: React.FC<{ userId: string, onClose: () => void }> = ({ userId, onClose }) => {
     const [summary, setSummary] = useState<UserPenaltyStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -372,7 +350,8 @@ export const Users: React.FC = () => {
                     const rawRolesList = [
                         ...(Array.isArray(u.roles) ? u.roles : []),
                         ...(Array.isArray(u.authorities) ? u.authorities : []),
-                        ...(u.role ? [u.role] : [])
+                        ...(u.role ? [u.role] : []),
+                        ...(u.roleName ? [u.roleName] : [])
                     ];
 
                     const rolesArray: UserRoleObject[] = rawRolesList.map(r => {
@@ -699,10 +678,15 @@ export const Users: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         {(() => {
-                                            const roleConfig = getRoleConfig(u.roles);
+                                            const roles = u.roles || [];
+                                            const isAdmin = u.role.includes('ADMIN');
+                                            const roleText = roles.length > 0 
+                                                ? roles.map(r => r.name.replace('ROLE_', '')).join(', ') 
+                                                : (u.role || 'USER').replace('ROLE_', '');
+                                            
                                             return (
-                                                <span className={`text-[10px] font-black uppercase tracking-widest ${roleConfig.className}`}>
-                                                    {roleConfig.label}
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isAdmin ? 'text-red-600' : 'text-zinc-600'}`}>
+                                                    {roleText}
                                                 </span>
                                             );
                                         })()}
@@ -730,8 +714,6 @@ export const Users: React.FC = () => {
                                             >
                                                 <Edit3 className="w-4 h-4" />
                                             </button>
-                                            <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"><Key className="w-4 h-4" /></button>
-                                            <button className="p-2 text-red-400 hover:text-red-700 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </td>
                                 </tr>

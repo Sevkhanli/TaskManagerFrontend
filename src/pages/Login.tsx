@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, ArrowRight, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Brain, ArrowRight, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const Login: React.FC = () => {
@@ -16,9 +16,9 @@ export const Login: React.FC = () => {
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-16">
                             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                                <CheckSquare className="w-6 h-6 text-zinc-900" />
+                                <Brain className="w-6 h-6 text-zinc-900" />
                             </div>
-                            <span className="font-bold text-2xl tracking-tighter">TaskFlow<span className="text-zinc-500">Pro</span></span>
+                            <span className="font-bold text-2xl tracking-tighter">IT <span className="text-zinc-500">Brains</span></span>
                         </div>
                         
                         <h2 className="text-4xl lg:text-5xl font-black leading-none tracking-tighter mb-8">

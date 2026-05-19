@@ -144,6 +144,77 @@ const WaiveModal: React.FC<{
     );
 };
 
+const BulkWaiveModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (reason: string) => void;
+    role: string;
+    loading?: boolean;
+}> = ({ isOpen, onClose, onConfirm, role, loading }) => {
+    const [reason, setReason] = useState('BAGISLANDINIZ');
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-zinc-100"
+                    >
+                        <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                            <h3 className="text-lg font-bold text-zinc-900">Toplu Ləğv Etmə</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-start gap-4 p-4 bg-red-50 border border-red-100 rounded-xl">
+                                <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-bold text-red-900">"{role}" Rolu Üzrə Ləğvetmə</p>
+                                    <p className="text-xs text-red-600">Bu roldakı bütün əməkdaşların aktiv cərimələri qalıcı olaraq ləğv ediləcək.</p>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">Ləğvetmə Səbəbi</label>
+                                <div className="relative">
+                                    <MessageSquare className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+                                    <input 
+                                        type="text"
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        placeholder="Səbəb qeyd edin..."
+                                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex gap-3">
+                            <button 
+                                onClick={onClose} 
+                                className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-600 rounded-xl font-bold text-xs hover:bg-white transition-colors"
+                            >
+                                LƏĞV ET
+                            </button>
+                            <button 
+                                onClick={() => onConfirm(reason)}
+                                disabled={loading || !reason.trim()}
+                                className="flex-3 px-4 py-2.5 bg-zinc-900 text-white rounded-xl font-bold text-xs hover:bg-zinc-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-zinc-900/10"
+                            >
+                                {loading && <RefreshCcw className="w-3 h-3 animate-spin" />}
+                                BÜTÜN CƏRİMƏLƏRİ SİL
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+    );
+};
+
 export const Penalties: React.FC = () => {
     const { user } = useAuth();
     const { notify } = useNotification();
@@ -162,6 +233,7 @@ export const Penalties: React.FC = () => {
     // Modal states
     const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
     const [waiveModal, setWaiveModal] = useState<{ isOpen: boolean; id: number | null }>({ isOpen: false, id: null });
+    const [bulkWaiveModal, setBulkWaiveModal] = useState<{ isOpen: boolean; role: string }>({ isOpen: false, role: '' });
 
     const fetchPenalties = async () => {
         setLoading(true);
@@ -197,23 +269,25 @@ export const Penalties: React.FC = () => {
         }
     };
 
-    const handleBulkWaive = async () => {
-        if (!selectedRole) return;
-        const reason = prompt(`"${selectedRole}" rolu üzrə bütün cərimələri ləğv etmək üçün səbəb qeyd edin:`);
-        if (!reason) return;
-
+    const handleBulkWaive = (role: string, reason: string) => {
+        if (!role) return;
+        
         setBulkLoading(true);
-        try {
-            await penaltyApi.waiveAllRole(selectedRole, reason);
-            await fetchPenalties();
-            window.dispatchEvent(new CustomEvent('penalty-update'));
-            notify('success', 'Toplu Ləğv Etmə', 'Roldakı bütün cərimələr uğurla ləğv edildi.');
-        } catch (err) {
-            console.error('[Penalties] Bulk waive error:', err);
-            notify('error', 'Xəta', 'Toplu ləğv etmə uğursuz oldu.');
-        } finally {
-            setBulkLoading(false);
-        }
+        setBulkWaiveModal({ isOpen: false, role: '' });
+        
+        penaltyApi.waiveAllRole(role, reason)
+            .then(async () => {
+                await fetchPenalties();
+                window.dispatchEvent(new CustomEvent('penalty-update'));
+                notify('success', 'Toplu Ləğv Etmə', 'Roldakı bütün cərimələr uğurla ləğv edildi.');
+            })
+            .catch((err) => {
+                console.error('[Penalties] Bulk waive error:', err);
+                notify('error', 'Xəta', 'Toplu ləğv etmə uğursuz oldu.');
+            })
+            .finally(() => {
+                setBulkLoading(false);
+            });
     };
 
     const handleMarkPaid = async (penaltyId: number) => {
@@ -397,7 +471,7 @@ export const Penalties: React.FC = () => {
 
                             {selectedRole && (
                                 <button 
-                                    onClick={handleBulkWaive}
+                                    onClick={() => setBulkWaiveModal({ isOpen: true, role: selectedRole })}
                                     disabled={bulkLoading || loading}
                                     className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-amber-500/10 whitespace-nowrap"
                                 >
@@ -563,6 +637,14 @@ export const Penalties: React.FC = () => {
                 onClose={() => setWaiveModal({ isOpen: false, id: null })}
                 onConfirm={(reason) => waiveModal.id && handleWaive(waiveModal.id, reason)}
                 loading={actionLoading !== null}
+            />
+
+            <BulkWaiveModal 
+                isOpen={bulkWaiveModal.isOpen}
+                onClose={() => setBulkWaiveModal({ isOpen: false, role: '' })}
+                onConfirm={(reason) => handleBulkWaive(bulkWaiveModal.role, reason)}
+                role={bulkWaiveModal.role}
+                loading={bulkLoading}
             />
         </div>
     );

@@ -10,7 +10,8 @@ import {
     Menu,
     X,
     Wallet,
-    RefreshCcw
+    RefreshCcw,
+    Brain
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PenaltySummary, UserRole } from '../types';
@@ -98,9 +99,9 @@ export const Layout: React.FC = () => {
             <aside className="hidden lg:flex w-64 flex-col border-r border-zinc-200 bg-white sticky top-0 h-screen">
                 <div className="p-6 flex items-center gap-3">
                     <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
-                        <CheckSquare className="w-5 h-5 text-white" />
+                        <Brain className="w-5 h-5 text-lime-400" />
                     </div>
-                    <span className="font-bold text-xl tracking-tight">TaskFlow<span className="text-zinc-400">Pro</span></span>
+                    <span className="font-bold text-xl tracking-tight">IT <span className="text-zinc-400">Brains</span></span>
                 </div>
                 
                 <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
@@ -176,7 +177,7 @@ export const Layout: React.FC = () => {
                             <Menu className="w-5 h-5" />
                         </button>
                         <h1 className="text-lg font-semibold text-zinc-900">
-                            {navigation.find(n => n.href === location.pathname)?.name || 'TaskFlow'}
+                            {navigation.find(n => n.href === location.pathname)?.name || 'IT Brains'}
                         </h1>
                     </div>
 
@@ -223,9 +224,9 @@ export const Layout: React.FC = () => {
                             <div className="p-6 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
-                                        <CheckSquare className="w-5 h-5 text-white" />
+                                        <Brain className="w-5 h-5 text-lime-400" />
                                     </div>
-                                    <span className="font-bold text-xl tracking-tight">TaskFlow<span className="text-zinc-400">Pro</span></span>
+                                    <span className="font-bold text-xl tracking-tight">IT <span className="text-zinc-400">Brains</span></span>
                                 </div>
                                 <button onClick={() => setIsMobileMenuOpen(false)}>
                                     <X className="w-5 h-5 text-zinc-500" />

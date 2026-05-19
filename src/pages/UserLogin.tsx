@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import { CheckSquare, ArrowLeft, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
+import { Brain, ArrowLeft, Mail, Lock, User as UserIcon, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const UserLogin: React.FC = () => {
@@ -62,9 +62,9 @@ export const UserLogin: React.FC = () => {
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-10">
                             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
-                                <CheckSquare className="w-6 h-6 text-white" />
+                                <Brain className="w-6 h-6 text-white" />
                             </div>
-                            <span className="font-bold text-2xl tracking-tighter text-zinc-900">İşçi<span className="text-zinc-400">Portalı</span></span>
+                            <span className="font-bold text-2xl tracking-tighter text-zinc-900">IT <span className="text-zinc-400">Brains</span></span>
                         </div>
 
                         <header className="mb-8">
@@ -92,7 +92,7 @@ export const UserLogin: React.FC = () => {
                                         value={credentials.email}
                                         onChange={e => setCredentials({...credentials, email: e.target.value})}
                                         className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl pl-12 pr-4 py-4 text-zinc-900 focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all placeholder:text-zinc-300"
-                                        placeholder="email@company.az"
+                                        placeholder="email@address.az"
                                     />
                                 </div>
                             </div>
@@ -125,7 +125,7 @@ export const UserLogin: React.FC = () => {
                 </motion.div>
                 
                 <footer className="mt-8 text-center">
-                    <p className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase">Secured by TaskFlow Governance Protocol</p>
+                    <p className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase">Powered by IT BRAINS</p>
                 </footer>
             </div>
         </div>
