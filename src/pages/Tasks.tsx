@@ -104,8 +104,8 @@ export const Tasks: React.FC = () => {
     const fetchTasks = async (usersList: User[] = allUsers) => {
         setLoading(true);
         try {
-            // Always fetch flat tasks to keep the main state updated
-            const data = await tasksApi.getTasks();
+            // Always fetch flat tasks to keep the main state updated with server-side filtering
+            const data = await tasksApi.getTasks(selectedRole);
             const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
             setTasks(mappedTasks);
 
@@ -123,6 +123,8 @@ export const Tasks: React.FC = () => {
                     date: group.date,
                     tasks: group.tasks.map(res => mapResponseToTask(res, usersList))
                 }));
+                // Note: groupedData from backend might not support role filter yet if it's a different endpoint
+                // But we will preserve the current behavior or filter it client-side if needed
                 setGroupedTasks(mappedGrouped);
                 
                 if (openFolders.length === 0 && mappedGrouped.length > 0) {
@@ -187,12 +189,11 @@ export const Tasks: React.FC = () => {
     const userContextReady = !!user;
 
     useEffect(() => {
-        console.log('[Tasks] Effect triggered. User Context Ready:', userContextReady, 'Name:', userFullName, 'View:', viewMode);
         const token = localStorage.getItem('tf_access_token');
         if (token || userContextReady) {
             fetchUsersAndTasks();
         }
-    }, [userId, userContextReady, isAdmin, viewMode]);
+    }, [userContextReady, selectedRole, viewMode]); // Simplified dependencies
 
     if (!user) {
         return (
@@ -440,32 +441,13 @@ export const Tasks: React.FC = () => {
         };
 
         const filterTask = (task: Task) => {
-            // 1. Search Query Filter
+            // 1. Search Match
             const titleMatch = (task.title || '').toLowerCase().includes(query);
             const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
-            const matchesSearch = titleMatch || assigneeMatch;
+            if (!titleMatch && !assigneeMatch) return false;
 
-            if (!matchesSearch) return false;
-
-            // 2. Authorization Filter
-            if (!isUserAuthorizedForTask(task)) return false;
-
-            // 3. Department (Role) Filter
-            // Əgər 'BÜTÜN ROLLAR' seçilibsə (ALL və ya boşdursa), filtri keç
-            if (!selectedRole || selectedRole === 'ALL' || selectedRole === '') return true;
-
-            // Əgər taskın icraçısı və ya rolu yoxdursa, siyahıdan çıxar
-            const executor = task.assignee;
-            if (!executor || !executor.roles || executor.roles.length === 0) return false;
-
-            // İcraçının bazadan gələn real rolunu təmizləyirik (Məsələn: 'ROLE_SATIS' -> 'SATIS')
-            const userRoleClean = executor.roles[0].name.replace("ROLE_", "").toUpperCase();
-            
-            // Filterdən seçilən rolu təmizləyirik (selectedRole may be 'SATIS' or 'ROLE_SATIS')
-            const filterRoleClean = selectedRole.replace("ROLE_", "").toUpperCase();
-
-            // Müqayisə: İstifadəçinin şəxsi adı nə olur olsun, rolu filterlə eynidirsə göstər
-            return userRoleClean === filterRoleClean;
+            // 2. Authorization (Creator or Assignee)
+            return isUserAuthorizedForTask(task);
         };
 
         const grouped = tasks.reduce((acc: GroupedTask[], task) => {
@@ -509,21 +491,10 @@ export const Tasks: React.FC = () => {
             // 1. Search Match
             const titleMatch = (task.title || '').toLowerCase().includes(query);
             const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
-            const matchesSearch = titleMatch || assigneeMatch;
-            if (!matchesSearch) return false;
+            if (!titleMatch && !assigneeMatch) return false;
 
             // 2. Authorization
-            if (!isUserAuthorizedForTask(task)) return false;
-
-            // 3. Role Filter
-            if (!selectedRole || selectedRole === 'ALL' || selectedRole === '') return true;
-            const executor = task.assignee;
-            if (!executor || !executor.roles || executor.roles.length === 0) return false;
-
-            const userRoleClean = executor.roles[0].name.replace("ROLE_", "").toUpperCase();
-            const filterRoleClean = selectedRole.replace("ROLE_", "").toUpperCase();
-
-            return userRoleClean === filterRoleClean;
+            return isUserAuthorizedForTask(task);
         });
     }, [tasks, searchQuery, selectedRole, isAdmin, userId, userFullName, userEmail]);
 
