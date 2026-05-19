@@ -112,9 +112,11 @@ export const authApi = {
         const response = await api.get<AuthResponse>('/api/auth/me');
         return response.data;
     },
-    getUsers: async (): Promise<any[]> => {
+    getUsers: async (role?: string): Promise<any[]> => {
         // Correct endpoint for fetching all users for admin
-        const response = await api.get<any[]>('/api/auth/admin/users');
+        const response = await api.get<any[]>('/api/auth/admin/users', {
+            params: role && role !== 'ALL' && role !== '' ? { role } : {}
+        });
         return response.data;
     },
     refreshToken: async (): Promise<AuthResponse> => {

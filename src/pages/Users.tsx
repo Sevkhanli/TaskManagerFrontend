@@ -360,7 +360,7 @@ export const Users: React.FC = () => {
             }
 
             // 2. Fetch users
-            const data = await authApi.getUsers();
+            const data = await authApi.getUsers(selectedRoleFilter);
             if (data && data.length > 0) {
                 console.log('[Users] Raw user from server:', JSON.stringify(data[0], null, 2));
             }
@@ -419,9 +419,9 @@ export const Users: React.FC = () => {
     };
 
     useEffect(() => {
-        console.log('[Users] COMPONENT MOUNTED - Version 1.2');
+        console.log('[Users] Synchronizing data for role:', selectedRoleFilter);
         fetchUsers();
-    }, []);
+    }, [selectedRoleFilter]);
 
     const handleAddUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -467,10 +467,6 @@ export const Users: React.FC = () => {
         const query = searchQuery.toLowerCase().trim();
         let result = users;
 
-        if (selectedRoleFilter !== 'ALL') {
-            result = result.filter(u => u.role === selectedRoleFilter);
-        }
-
         if (query) {
             result = result.filter(u => 
                 u.fullName.toLowerCase().includes(query) || 
@@ -480,7 +476,7 @@ export const Users: React.FC = () => {
         }
 
         return result;
-    }, [users, searchQuery, selectedRoleFilter]);
+    }, [users, searchQuery]);
 
     const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
     const paginatedUsers = React.useMemo(() => {
