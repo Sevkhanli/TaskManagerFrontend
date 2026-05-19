@@ -200,8 +200,15 @@ export const tasksApi = {
         });
         return response.data;
     },
-    getGroupedTasks: async (): Promise<GroupedTaskResponse[]> => {
-        const response = await api.get<GroupedTaskResponse[]>('/api/tasks/grouped');
+    getGroupedTasks: async (filters?: { role?: string; status?: string; startDate?: string; endDate?: string }): Promise<GroupedTaskResponse[]> => {
+        const params: any = {};
+        if (filters) {
+            if (filters.role && filters.role !== 'ALL') params.role = filters.role;
+            if (filters.status && filters.status !== 'ALL') params.status = filters.status;
+            if (filters.startDate) params.startDate = filters.startDate;
+            if (filters.endDate) params.endDate = filters.endDate;
+        }
+        const response = await api.get<GroupedTaskResponse[]>('/api/tasks/grouped', { params });
         return response.data;
     },
     assignToRole: async (taskData: { title: string, description: string, deadline: string, roleName: string }): Promise<string> => {

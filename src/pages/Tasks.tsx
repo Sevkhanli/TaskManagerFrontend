@@ -107,36 +107,35 @@ export const Tasks: React.FC = () => {
     const fetchTasks = async (usersList: User[] = allUsers) => {
         setLoading(true);
         try {
-            // Always fetch flat tasks to keep the main state updated with server-side filtering
-            const data = await tasksApi.getTasks({
+            const filters = {
                 role: selectedRole,
                 status: selectedStatus,
                 startDate: startDate,
                 endDate: endDate
-            });
-            const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
-            setTasks(mappedTasks);
+            };
+
+            if (viewMode === 'list') {
+                const data = await tasksApi.getTasks(filters);
+                const mappedTasks = data.map(res => mapResponseToTask(res, usersList));
+                setTasks(mappedTasks);
+            } else {
+                const groupedData = await tasksApi.getGroupedTasks(filters);
+                const mappedGrouped = groupedData.map(group => ({
+                    date: group.date,
+                    tasks: group.tasks.map(res => mapResponseToTask(res, usersList))
+                }));
+                setGroupedTasks(mappedGrouped);
+                
+                if (openFolders.length === 0 && mappedGrouped.length > 0) {
+                    setOpenFolders([mappedGrouped[0].date]);
+                }
+            }
 
             // Fetch DB roles for filter
             if (isAdmin && dbRoles.length === 0) {
                 const roles = await authApi.getRoles();
                 if (roles && roles.length > 0) {
                     setDbRoles(roles.map(r => r.toUpperCase()));
-                }
-            }
-
-            if (viewMode === 'folder') {
-                const groupedData = await tasksApi.getGroupedTasks();
-                const mappedGrouped = groupedData.map(group => ({
-                    date: group.date,
-                    tasks: group.tasks.map(res => mapResponseToTask(res, usersList))
-                }));
-                // Note: groupedData from backend might not support role filter yet if it's a different endpoint
-                // But we will preserve the current behavior or filter it client-side if needed
-                setGroupedTasks(mappedGrouped);
-                
-                if (openFolders.length === 0 && mappedGrouped.length > 0) {
-                    setOpenFolders([mappedGrouped[0].date]);
                 }
             }
             setError(null);
@@ -432,56 +431,7 @@ export const Tasks: React.FC = () => {
         }
     };
 
-    // Synchronize grouped tasks for search/folders UI based on flat tasks list
-    useEffect(() => {
-        console.log('[Tasks] Grouping effect triggered. Role:', selectedRole, 'Search:', searchQuery);
-        
-        const query = searchQuery.toLowerCase().trim();
-        
-        const isUserAuthorizedForTask = (t: Task) => {
-            if (isAdmin) return true;
-            const myNameRaw = (userFullName || '').toLowerCase().trim();
-            const myEmailRaw = (userEmail || '').toLowerCase().trim();
-            const assigneeName = (t.assignee?.fullName || '').toLowerCase().trim();
-            const creatorName = (t.creator?.fullName || '').toLowerCase().trim();
-            
-            return assigneeName === myNameRaw || assigneeName === myEmailRaw || creatorName === myNameRaw || creatorName === myEmailRaw;
-        };
-
-        const filterTask = (task: Task) => {
-            // 1. Search Match
-            const titleMatch = (task.title || '').toLowerCase().includes(query);
-            const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
-            if (!titleMatch && !assigneeMatch) return false;
-
-            // 2. Authorization (Creator or Assignee)
-            return isUserAuthorizedForTask(task);
-        };
-
-        const grouped = tasks.reduce((acc: GroupedTask[], task) => {
-            if (!filterTask(task)) return acc;
-            
-            // Grouping by date
-            const date = (task.deadline || '').split('T')[0] || 'Unknown';
-            const existingGroup = acc.find(g => g.date === date);
-            
-            if (existingGroup) {
-                existingGroup.tasks.push(task);
-            } else {
-                acc.push({ date, tasks: [task] });
-            }
-            return acc;
-        }, []);
-
-        grouped.sort((a, b) => b.date.localeCompare(a.date));
-        setGroupedTasks(grouped);
-        
-        if (openFolders.length === 0 && grouped.length > 0) {
-            setOpenFolders([grouped[0].date]);
-        }
-    }, [tasks, searchQuery, selectedRole, isAdmin, userId, userFullName, userEmail]);
-
-    // Use memoized filtered tasks for list view to keep it consistent
+    // Use memoized filtered tasks for list view
     const filteredTasks = React.useMemo(() => {
         const query = searchQuery.toLowerCase().trim();
         
@@ -504,9 +454,29 @@ export const Tasks: React.FC = () => {
             // 2. Authorization
             return isUserAuthorizedForTask(task);
         });
-    }, [tasks, searchQuery, selectedRole, isAdmin, userId, userFullName, userEmail]);
+    }, [tasks, searchQuery, isAdmin, userFullName, userEmail]);
 
-    const filteredGroupedTasks = groupedTasks;
+    // Filter grouped tasks based on search query
+    const filteredGroupedTasks = React.useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
+        if (!query) return groupedTasks;
+
+        return groupedTasks.map(group => ({
+            ...group,
+            tasks: group.tasks.filter(task => {
+                const titleMatch = (task.title || '').toLowerCase().includes(query);
+                const assigneeMatch = (task.assignee?.fullName || '').toLowerCase().includes(query);
+                return titleMatch || assigneeMatch;
+            })
+        })).filter(group => group.tasks.length > 0);
+    }, [groupedTasks, searchQuery]);
+
+    // Open first folder automatically when grouped tasks change
+    useEffect(() => {
+        if (openFolders.length === 0 && filteredGroupedTasks.length > 0) {
+            setOpenFolders([filteredGroupedTasks[0].date]);
+        }
+    }, [filteredGroupedTasks]);
 
     // Pagination calculations
     const paginatedTasks = filteredTasks.slice(
