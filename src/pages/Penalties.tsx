@@ -185,6 +185,9 @@ export const Penalties: React.FC = () => {
                 data = await penaltyApi.getMyPenalties();
             }
             setPenalties(data);
+            if (data && data.length > 0) {
+                console.log('[Penalties] Raw penalty from server:', JSON.stringify(data[0], null, 2));
+            }
             setError(null);
         } catch (err) {
             console.error('[Penalties] Fetch error:', err);
@@ -289,6 +292,12 @@ export const Penalties: React.FC = () => {
         if (!query) return roles;
         return roles.filter(role => role.toLowerCase().includes(query));
     }, [dbRoles, roleSearchQuery]);
+
+    const getUserDisplayName = (p: any) => {
+        if (!p) return 'Naməlum';
+        const u = p.user || {};
+        return u.fullName || u.name || p.userName || p.fullName || p.staffName || u.username || 'Əməkdaş';
+    };
 
     return (
         <div className="space-y-6">
@@ -457,9 +466,9 @@ export const Penalties: React.FC = () => {
                                             )}
                                         </div>
                                         <h4 className="font-bold text-lg text-zinc-900 group-hover:text-zinc-600 transition-colors">
-                                            {isAdmin ? `${penalty.user?.fullName || 'İstifadəçi'} / ` : ''}
+                                            {isAdmin ? `${getUserDisplayName(penalty)} / ` : ''}
                                             <span className="text-zinc-400 font-medium">
-                                                {penalty.task?.title || (penalty as any).taskTitle || (penalty as any).taskName || 'Naməlum Tapşırıq'}
+                                                {penalty.task?.title || (penalty as any).taskTitle || (penalty as any).taskName || 'SLA Pozuntusu'}
                                             </span>
                                         </h4>
                                         <p className="text-sm text-zinc-500 flex items-center gap-2">
