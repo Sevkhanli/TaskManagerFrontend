@@ -202,6 +202,131 @@ const UpdateRoleModal: React.FC<{ user: User, dbRoles: string[], onClose: () => 
     );
 };
 
+const ResetPasswordModal: React.FC<{ user: User, onClose: () => void }> = ({ user, onClose }) => {
+    const { notify } = useNotification();
+    const [submitting, setSubmitting] = useState(false);
+    const [passwords, setPasswords] = useState({
+        newPassword: '',
+        confirmPassword: ''
+    });
+
+    const handleReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (passwords.newPassword.length < 8) {
+            notify('error', 'Validasiya', 'Şifrə ən az 8 simvoldan ibarət olmalıdır.');
+            return;
+        }
+
+        if (passwords.newPassword !== passwords.confirmPassword) {
+            notify('error', 'Validasiya', 'Şifrələr bir-biri ilə uyğun gəlmir!');
+            return;
+        }
+
+        // Complexity check
+        const hasUpper = /[A-Z]/.test(passwords.newPassword);
+        const hasLower = /[a-z]/.test(passwords.newPassword);
+        const hasNumber = /[0-9]/.test(passwords.newPassword);
+
+        if (!hasUpper || !hasLower || !hasNumber) {
+            notify('error', 'Validasiya', 'Şifrədə ən az bir böyük hərf, bir kiçik hərf və bir rəqəm olmalıdır.');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const response = await authApi.adminResetPassword(user.id, passwords);
+            if (response.success) {
+                notify('success', 'Uğurlu', 'Şifrə uğurla yeniləndi!');
+                onClose();
+            } else {
+                notify('error', 'Xəta', response.message || 'Şifrə yenilənə bilmədi.');
+            }
+        } catch (err: any) {
+            console.error('[ResetPasswordModal] Error:', err);
+            const msg = err.response?.data?.message || 'Şəbəkə xətası baş verdi.';
+            notify('error', 'Xəta', msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-xs">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-zinc-100"
+            >
+                <form onSubmit={handleReset}>
+                    <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+                        <div>
+                            <h3 className="text-xl font-bold text-zinc-900">Şifrəni Sıfırla</h3>
+                            <p className="text-sm text-zinc-500">{user.fullName}</p>
+                        </div>
+                        <button type="button" onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-900">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="p-8 space-y-6">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Yeni Şifrə</label>
+                                <div className="relative">
+                                    <Key className="w-4 h-4 absolute left-3 top-3.5 text-zinc-400" />
+                                    <input 
+                                        required
+                                        type="password"
+                                        value={passwords.newPassword}
+                                        onChange={e => setPasswords({...passwords, newPassword: e.target.value})}
+                                        placeholder="••••••••"
+                                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-3 focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-900 font-bold"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-2">Yeni Şifrənin Təkrarı</label>
+                                <div className="relative">
+                                    <Key className="w-4 h-4 absolute left-3 top-3.5 text-zinc-400" />
+                                    <input 
+                                        required
+                                        type="password"
+                                        value={passwords.confirmPassword}
+                                        onChange={e => setPasswords({...passwords, confirmPassword: e.target.value})}
+                                        placeholder="••••••••"
+                                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-3 focus:outline-hidden focus:ring-2 focus:ring-zinc-900/5 transition-all text-zinc-900 font-bold"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                            <ul className="text-[10px] text-zinc-500 space-y-1 list-disc pl-4">
+                                <li>Minimum 8 simvol</li>
+                                <li>Ən azı bir böyük hərf (A-Z)</li>
+                                <li>Ən azı bir kiçik hərf (a-z)</li>
+                                <li>Ən azı bir rəqəm (0-9)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-zinc-50 border-t border-zinc-100 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-6 py-2 rounded-xl text-zinc-500 hover:bg-zinc-100 transition-colors font-bold text-[11px] tracking-widest">LƏĞV ET</button>
+                        <button 
+                            type="submit" 
+                            disabled={submitting}
+                            className="bg-zinc-900 text-white px-8 py-2 rounded-xl font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center gap-2 text-[11px] tracking-widest shadow-lg shadow-zinc-900/10"
+                        >
+                            {submitting ? <RefreshCcw className="w-4 h-4 animate-spin" /> : 'ŞİFRƏNİ YENİLƏ'}
+                        </button>
+                    </div>
+                </form>
+            </motion.div>
+        </div>
+    );
+};
+
 const CreateRoleModal: React.FC<{ onClose: () => void, onSuccess: () => void }> = ({ onClose, onSuccess }) => {
     const { notify } = useNotification();
     const [roleName, setRoleName] = useState('');
@@ -295,6 +420,7 @@ export const Users: React.FC = () => {
     const [isCreatingRole, setIsCreatingRole] = useState(false);
     const [selectedUserForSummary, setSelectedUserForSummary] = useState<string | null>(null);
     const [selectedUserForRole, setSelectedUserForRole] = useState<User | null>(null);
+    const [selectedUserForPasswordReset, setSelectedUserForPasswordReset] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -618,6 +744,13 @@ export const Users: React.FC = () => {
                 />
             )}
 
+            {selectedUserForPasswordReset && (
+                <ResetPasswordModal 
+                    user={selectedUserForPasswordReset}
+                    onClose={() => setSelectedUserForPasswordReset(null)}
+                />
+            )}
+
             {isCreatingRole && (
                 <CreateRoleModal 
                     onClose={() => setIsCreatingRole(null as any)}
@@ -713,6 +846,13 @@ export const Users: React.FC = () => {
                                                 title="Edit User Permissions"
                                             >
                                                 <Edit3 className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => setSelectedUserForPasswordReset(u)}
+                                                className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg"
+                                                title="Reset User Password"
+                                            >
+                                                <Key className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </td>

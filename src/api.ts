@@ -143,6 +143,10 @@ export const authApi = {
         });
         return response.data;
     },
+    adminResetPassword: async (userId: string | number, passwords: any): Promise<{ success: boolean; message: string }> => {
+        const response = await api.put<{ success: boolean; message: string }>(`/api/auth/admin/users/${userId}/reset-password`, passwords);
+        return response.data;
+    },
     createRole: async (roleName: string): Promise<{ success: boolean; message: string }> => {
         const response = await api.post<{ success: boolean; message: string }>('/api/auth/admin/roles', null, {
             params: { roleName }
