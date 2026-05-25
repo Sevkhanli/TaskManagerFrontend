@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { PenaltyConfig, TaskCompletionRequest, PenaltySummary, Penalty, UserPenaltyStats } from './types';
 
-const API_BASE_URL = 'http://localhost:8080';
+// Əgər .env-də link varsa onu götürəcək, yoxdursa lokalda işləyəcək
+const API_BASE_URL = process.env.REACT_APP_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
